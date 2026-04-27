@@ -85,8 +85,8 @@ export default function JobBoardPage() {
               </div>
               <p className="job-desc">{job.description}</p>
               <div className="job-card-footer">
-                <button className="btn-secondary">Detayları Gör</button>
-                <button className="btn-primary">Teklif Ver</button>
+                <a href={`/isler/${job.id}`} className="btn-secondary" style={{ textDecoration: 'none' }}>Detayları Gör</a>
+                <a href={`/isler/${job.id}`} className="btn-primary" style={{ textDecoration: 'none' }}>Teklif Ver</a>
               </div>
             </div>
           ))}

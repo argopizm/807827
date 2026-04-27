@@ -33,8 +33,8 @@ export default function RootLayout({
               </a>
               <div className="nav-links">
                 <a href="/ilanlar">İş İlanları</a>
-                <a href="/freelancerlar">Freelancer Bul</a>
-                <button className="btn-primary">Giriş Yap</button>
+                <a href="/profil">Freelancer Bul</a>
+                <a href="/api/auth/signin" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }}>Giriş Yap</a>
               </div>
             </div>
           </nav>
