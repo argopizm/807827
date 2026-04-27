@@ -1,14 +1,14 @@
 "use client";
-export const runtime = 'edge';
 
-import { useState } from "react";
+import { use, useState } from "react";
 import AdSenseSlot from "@/components/AdSenseSlot";
 
-export default function ProfilePage({ params }: { params: { username: string } }) {
+export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
+  const { username } = use(params);
   // Mock data for demonstration
   const user = {
     name: "Ahmet Yılmaz",
-    username: params.username,
+    username: username,
     bio: "Kıdemli Full-stack Developer | 10+ Yıl Deneyim",
     avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=Ahmet",
     tc_verified: true,

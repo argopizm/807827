@@ -1,7 +1,7 @@
 "use client";
 export const runtime = "edge";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { 
   Calendar, 
   DollarSign, 
@@ -13,12 +13,13 @@ import {
   ArrowLeft 
 } from "lucide-react";
 
-export default function JobDetailPage({ params }: { params: { id: string } }) {
+export default function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [hasApplied, setHasApplied] = useState(false);
 
   // Mock data for a specific job
   const job = {
-    id: params.id,
+    id: id,
     title: "Next.js ile E-Ticaret Arayüzü",
     client: "Dijital Akademi",
     client_id: "user_123",

@@ -1,10 +1,10 @@
 "use client";
-export const runtime = "edge";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { Star, MessageSquare, Send, CheckCircle2 } from "lucide-react";
 
-export default function ReviewPage({ params }: { params: { handshakeId: string } }) {
+export default function ReviewPage({ params }: { params: Promise<{ handshakeId: string }> }) {
+  const { handshakeId } = use(params);
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
