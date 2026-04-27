@@ -1,35 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+
+const errorMessages: Record<string, string> = {
+  Configuration: "Sunucu yapılandırma hatası. Lütfen Google yerine e-posta ile giriş yapmayı deneyin.",
+  AccessDenied: "Erişim reddedildi.",
+  Verification: "Doğrulama hatası.",
+  OAuthCallback: "Google girişi sırasında hata oluştu. Tekrar deneyin.",
+  Default: "Bir hata oluştu. Tekrar deneyin.",
+};
 
 export default function GirisPage() {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<"giris" | "kayit">("giris");
-  const [showPassword, setShowPassword] = useState(false);
+  const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [info, setInfo] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ type: "error" | "success" | "info"; text: string } | null>(null);
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setInfo(null);
-    try {
-      await signIn("google", { callbackUrl: "/" });
-    } catch {
-      setLoading(false);
-      setInfo("Google ile giriş başlatılamadı. Tekrar deneyin.");
-    }
-  };
-
-  // E-posta/şifre formu Google'a yönlendiriyor (credentials provider şimdilik yok)
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setInfo(null);
-    setLoading(true);
-    // E-posta/şifre ile giriş şu an desteklenmiyor, Google OAuth kullan
-    setLoading(false);
-    setInfo("E-posta ile giriş yakında aktif olacak. Şimdilik Google ile giriş yapabilirsiniz.");
-  };
+  // Hata parametresi varsa göster
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err) setMsg({ type: "error", text: errorMessages[err] ?? errorMessages.Default });
+  }, [searchParams]);
 
   const GoogleIcon = () => (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -40,103 +35,122 @@ export default function GirisPage() {
     </svg>
   );
 
+  const handleGoogle = async () => {
+    setLoading(true);
+    setMsg(null);
+    await signIn("google", { callbackUrl: "/" });
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setMsg(null);
+    setLoading(true);
+    const form = e.currentTarget;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
+    const name = mode === "kayit" ? (form.elements.namedItem("name") as HTMLInputElement)?.value : null;
+
+    if (mode === "kayit") {
+      // Kayıt
+      try {
+        const res = await fetch("/api/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setMsg({ type: "error", text: data.error ?? "Kayıt başarısız." });
+          setLoading(false);
+          return;
+        }
+        setMsg({ type: "success", text: "Kayıt başarılı! Şimdi giriş yapılıyor..." });
+        // Otomatik giriş
+        const result = await signIn("credentials", { email, password, callbackUrl: "/", redirect: false });
+        if (result?.error) {
+          setMsg({ type: "error", text: "Kayıt tamam, ancak otomatik giriş başarısız. Manuel giriş yapın." });
+          setMode("giris");
+        } else {
+          window.location.href = result?.url ?? "/";
+        }
+      } catch {
+        setMsg({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
+      }
+    } else {
+      // Giriş
+      const result = await signIn("credentials", { email, password, callbackUrl: "/", redirect: false });
+      if (result?.error) {
+        setMsg({ type: "error", text: "E-posta veya şifre hatalı." });
+      } else if (result?.url) {
+        window.location.href = result.url;
+      }
+    }
+    setLoading(false);
+  };
+
   return (
     <div className="auth-page">
       <div className="auth-glow" />
-
       <div className="auth-card glass-card">
         <div className="auth-logo">
           <span className="gradient-text">Freelancer</span> Türkiye
         </div>
 
-        {/* Tabs */}
         <div className="auth-tabs">
-          <button className={`auth-tab ${mode === "giris" ? "active" : ""}`} onClick={() => { setMode("giris"); setInfo(null); }}>
-            Giriş Yap
-          </button>
-          <button className={`auth-tab ${mode === "kayit" ? "active" : ""}`} onClick={() => { setMode("kayit"); setInfo(null); }}>
-            Kaydol
-          </button>
+          <button className={`auth-tab ${mode === "giris" ? "active" : ""}`} onClick={() => { setMode("giris"); setMsg(null); }}>Giriş Yap</button>
+          <button className={`auth-tab ${mode === "kayit" ? "active" : ""}`} onClick={() => { setMode("kayit"); setMsg(null); }}>Kaydol</button>
           <div className={`auth-tab-indicator ${mode === "kayit" ? "right" : ""}`} />
         </div>
 
-        {/* Bilgi mesajı */}
-        {info && (
-          <div className="auth-info-box">
-            <AlertCircle size={16} />
-            <span>{info}</span>
+        {msg && (
+          <div className={`auth-msg ${msg.type}`}>
+            {msg.type === "error" && <AlertCircle size={15} />}
+            {msg.type === "success" && <CheckCircle2 size={15} />}
+            <span>{msg.text}</span>
           </div>
         )}
 
-        {/* Google OAuth — ÇALIŞIYOR */}
-        <button className="google-btn" onClick={handleGoogleLogin} disabled={loading}>
+        <button className="google-btn" onClick={handleGoogle} disabled={loading}>
           <GoogleIcon />
           {loading ? "Yönlendiriliyor..." : mode === "giris" ? "Google ile Giriş Yap" : "Google ile Kaydol"}
         </button>
 
-        <div className="auth-divider">
-          <span>veya e-posta ile devam et</span>
-        </div>
+        <div className="auth-divider"><span>veya e-posta ile</span></div>
 
-        {/* E-posta Formu */}
         <form className="auth-form" onSubmit={handleEmailSubmit}>
           {mode === "kayit" && (
             <div className="input-group">
               <label><User size={14} /> Ad Soyad</label>
-              <input type="text" placeholder="Adınız Soyadınız" required />
+              <input name="name" type="text" placeholder="Adınız Soyadınız" required minLength={2} />
             </div>
           )}
-
           <div className="input-group">
             <label><Mail size={14} /> E-posta</label>
-            <input type="email" placeholder="ornek@email.com" required />
+            <input name="email" type="email" placeholder="ornek@email.com" required />
           </div>
-
           <div className="input-group">
             <label><Lock size={14} /> Şifre</label>
             <div className="password-wrap">
-              <input
-                type={showPassword ? "text" : "password"}
-                placeholder={mode === "kayit" ? "En az 8 karakter" : "Şifreniz"}
-                required
-              />
-              <button type="button" className="eye-btn" onClick={() => setShowPassword(!showPassword)}>
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              <input name="password" type={show ? "text" : "password"} placeholder={mode === "kayit" ? "En az 8 karakter" : "Şifreniz"} required minLength={mode === "kayit" ? 8 : 1} />
+              <button type="button" className="eye-btn" onClick={() => setShow(!show)}>
+                {show ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
 
-          {mode === "giris" && (
-            <button type="button" className="forgot-link" onClick={() => setInfo("Şifre sıfırlama için Google ile giriş yapmanızı öneririz.")}>
-              Şifremi unuttum
-            </button>
-          )}
-
           {mode === "kayit" && (
-            <p className="auth-notice">
-              Kaydolarak <a href="#">Kullanım Şartlarını</a> ve{" "}
-              <a href="#">Gizlilik Politikasını</a> kabul etmiş olursunuz.
-            </p>
+            <p className="auth-notice">Kaydolarak <a href="#">Kullanım Şartlarını</a> kabul etmiş olursunuz.</p>
           )}
 
           <button type="submit" className="btn-primary auth-submit" disabled={loading}>
-            {loading ? "İşleniyor..." : mode === "giris" ? "Giriş Yap" : "Hesap Oluştur"}
-            <ArrowRight size={18} />
+            {loading ? <><Loader2 className="spin" size={18} /> İşleniyor...</> : <>{mode === "giris" ? "Giriş Yap" : "Hesap Oluştur"} <ArrowRight size={18} /></>}
           </button>
         </form>
 
-        {/* Öneri */}
-        <div className="auth-google-note">
-          <CheckCircle2 size={14} color="var(--success)" />
-          <span><strong>Önerilen:</strong> Anında ve güvenli erişim için Google ile giriş yapın.</span>
-        </div>
-
         <p className="auth-switch">
-          {mode === "giris" ? (
-            <>Hesabın yok mu? <button onClick={() => setMode("kayit")}>Kaydol</button></>
-          ) : (
-            <>Zaten hesabın var mı? <button onClick={() => setMode("giris")}>Giriş Yap</button></>
-          )}
+          {mode === "giris"
+            ? <>Hesabın yok mu? <button onClick={() => { setMode("kayit"); setMsg(null); }}>Kaydol</button></>
+            : <>Hesabın var mı? <button onClick={() => { setMode("giris"); setMsg(null); }}>Giriş Yap</button></>}
         </p>
       </div>
     </div>
