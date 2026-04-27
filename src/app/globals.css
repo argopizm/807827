@@ -213,6 +213,23 @@ details[open] .faq-icon { transform: rotate(180deg); }
 @media (max-width: 1024px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .why-grid { grid-template-columns: 1fr; } .cat-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 768px) { .hero-title { font-size: 40px; letter-spacing: -1.5px; } .hero-subtitle { font-size: 16px; } .steps-grid { grid-template-columns: 1fr; } .step-arrow { display: none; } .testimonial-grid { grid-template-columns: 1fr; } .faq-grid { grid-template-columns: 1fr; } .section-title { font-size: 28px; } .cta-card { padding: 40px 24px; } .cta-title { font-size: 28px; } .cat-grid { grid-template-columns: 1fr; } }
 
+/* Auth info / Google note */
+.auth-info-box { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); border-radius: 10px; font-size: 13px; color: var(--warning); line-height: 1.5; }
+.auth-info-box svg { flex-shrink: 0; margin-top: 1px; }
+.auth-google-note { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.15); border-radius: 10px; font-size: 13px; color: var(--text-muted); }
+.forgot-link { background: none; border: none; font-size: 13px; color: var(--primary); text-align: right; cursor: pointer; padding: 0; margin-top: -8px; }
+.forgot-link:hover { text-decoration: underline; }
+
+/* Job Detail — status badges & auth states */
+.date-badge { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.status-badge { padding: 3px 10px; border-radius: 100px; font-size: 12px; font-weight: 700; }
+.status-open { background: rgba(16,185,129,0.1); color: var(--success); }
+.status-active { background: rgba(99,102,241,0.1); color: var(--primary); }
+.status-completed, .status-cancelled { background: rgba(255,255,255,0.05); color: var(--text-muted); }
+.own-job-notice { display: flex; align-items: center; gap: 10px; padding: 16px; background: rgba(99,102,241,0.07); border-radius: 12px; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+
+
+
 /* Job Board Page Styles */
 .job-board { padding-top: 40px; }
 .search-bar { padding: 16px 24px; display: flex; gap: 16px; align-items: center; margin-bottom: 40px; }

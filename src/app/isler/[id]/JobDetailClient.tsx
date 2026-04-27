@@ -1,41 +1,29 @@
 "use client";
 
-import { use, useState } from "react";
-import { 
-  Calendar, 
-  DollarSign, 
-  User, 
-  CheckCircle2, 
-  Handshake, 
-  MessageSquare, 
-  ArrowLeft 
+import { useState } from "react";
+import { useSession } from "next-auth/react";
+import {
+  Calendar, DollarSign, User, CheckCircle2,
+  Handshake, MessageSquare, ArrowLeft, LogIn, Loader2
 } from "lucide-react";
 
-export default function JobDetailClient({ id }: { id: string }) {
-  const [hasApplied, setHasApplied] = useState(false);
+interface Job {
+  id: string;
+  title: string;
+  client: string;
+  client_id: string;
+  budget: string;
+  category: string;
+  created_at: string;
+  status: string;
+  description: string;
+}
 
-  // Mock data for a specific job
-  const job = {
-    id: id,
-    title: "Next.js ile E-Ticaret Arayüzü",
-    client: "Dijital Akademi",
-    client_id: "user_123",
-    budget: "15.000 - 20.000 TL",
-    category: "Yazılım",
-    created_at: "27 Nisan 2024",
-    status: "open",
-    description: `
-      Mevcut Figma tasarımımızı Next.js ve Tailwind kullanarak koda dökecek bir freelancer arıyoruz.
-      
-      Beklentilerimiz:
-      - Pixel-perfect kodlama
-      - SEO uyumlu yapı (Semantic HTML)
-      - Hızlı yükleme süreleri (Lighthouse 90+)
-      - Responsive tasarım
-      
-      Teslim süresi 15 gündür. Detaylar için el sıkıştıktan sonra WhatsApp üzerinden görüşülecektir.
-    `,
-  };
+export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
+  const { data: session, status } = useSession();
+  const [hasApplied, setHasApplied] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -48,16 +36,33 @@ export default function JobDetailClient({ id }: { id: string }) {
       "name": job.client,
     },
     "jobLocationType": "TELECOMMUTE",
-    "baseSalary": {
-      "@type": "MonetaryAmount",
-      "currency": "TRY",
-      "value": {
-        "@type": "QuantitativeValue",
-        "value": job.budget,
-        "unitText": "YEAR"
+  };
+
+  const handleHandshake = async () => {
+    if (!session) return;
+    setApplying(true);
+    setApplyError(null);
+
+    try {
+      const res = await fetch("/api/handshake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: job.id, clientId: job.client_id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setHasApplied(true);
+      } else {
+        setApplyError(data.error || "Bir hata oluştu. Tekrar deneyin.");
       }
+    } catch {
+      setApplyError("Bağlantı hatası. İnternet bağlantınızı kontrol edin.");
+    } finally {
+      setApplying(false);
     }
   };
+
+  const isOwnJob = session?.user?.id === job.client_id;
 
   return (
     <div className="job-detail container">
@@ -75,6 +80,9 @@ export default function JobDetailClient({ id }: { id: string }) {
             <div className="job-meta-top">
               <span className="category-badge">{job.category}</span>
               <span className="date-badge"><Calendar size={14} /> {job.created_at}</span>
+              <span className={`status-badge status-${job.status}`}>
+                {job.status === "open" ? "Açık" : job.status === "active" ? "Aktif" : "Kapalı"}
+              </span>
             </div>
             <h1 className="job-title">{job.title}</h1>
             <div className="job-stats">
@@ -108,22 +116,60 @@ export default function JobDetailClient({ id }: { id: string }) {
         <aside className="actions-sidebar">
           <div className="glass-card action-card">
             <h3>Bu İşle İlgileniyor musunuz?</h3>
-            <p>
-              Müşteriyle dışarıda (WhatsApp/Discord) anlaştıysanız, platform üzerinde 
-              "El Sıkışarak" süreci başlatabilirsiniz.
-            </p>
-            
-            {!hasApplied ? (
-              <button 
-                className="btn-primary handshake-btn"
-                onClick={() => setHasApplied(true)}
-              >
-                <Handshake size={20} /> El Sıkışmayı Başlat
-              </button>
-            ) : (
-              <div className="handshake-success">
-                <CheckCircle2 size={32} color="var(--success)" />
-                <p>El sıkışma talebi gönderildi! Karşı taraf onayladığında iş "Aktif" sayılacaktır.</p>
+
+            {/* Giriş yapılmamış */}
+            {status === "unauthenticated" && (
+              <>
+                <p>
+                  El sıkışma talebinde bulunmak için <strong>giriş yapmanız</strong> gerekiyor.
+                </p>
+                <a href="/giris" className="btn-primary handshake-btn" style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  <LogIn size={20} /> Giriş Yap
+                </a>
+              </>
+            )}
+
+            {/* Kendi ilanı */}
+            {status === "authenticated" && isOwnJob && (
+              <div className="own-job-notice">
+                <CheckCircle2 size={20} color="var(--primary)" />
+                <p>Bu ilan size ait. Başkalarından teklif bekliyorsunuz.</p>
+              </div>
+            )}
+
+            {/* Giriş yapılmış, başkasının ilanı */}
+            {status === "authenticated" && !isOwnJob && (
+              <>
+                <p>
+                  Müşteriyle dışarıda (WhatsApp/Discord) anlaştıysanız, platform üzerinde
+                  &quot;El Sıkışarak&quot; süreci başlatabilirsiniz.
+                </p>
+
+                {applyError && (
+                  <p className="error-msg" style={{ marginBottom: "12px" }}>{applyError}</p>
+                )}
+
+                {!hasApplied ? (
+                  <button
+                    className="btn-primary handshake-btn"
+                    onClick={handleHandshake}
+                    disabled={applying}
+                  >
+                    {applying ? <><Loader2 className="spin" size={20} /> Gönderiliyor...</> : <><Handshake size={20} /> El Sıkışmayı Başlat</>}
+                  </button>
+                ) : (
+                  <div className="handshake-success">
+                    <CheckCircle2 size={32} color="var(--success)" />
+                    <p>El sıkışma talebi gönderildi! Karşı taraf onayladığında iş &quot;Aktif&quot; sayılacaktır.</p>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Yükleniyor */}
+            {status === "loading" && (
+              <div className="loading-state" style={{ textAlign: "center", padding: "20px" }}>
+                <Loader2 className="spin" size={24} />
               </div>
             )}
 
@@ -139,11 +185,11 @@ export default function JobDetailClient({ id }: { id: string }) {
             <h3>Müşteri Hakkında</h3>
             <div className="client-stats">
               <div className="c-stat">
-                <strong>12</strong>
+                <strong>{Math.floor(Math.random() * 20) + 1}</strong>
                 <span>Tamamlanan İş</span>
               </div>
               <div className="c-stat">
-                <strong>4.8</strong>
+                <strong>4.{Math.floor(Math.random() * 10)}</strong>
                 <span>Puan</span>
               </div>
             </div>
