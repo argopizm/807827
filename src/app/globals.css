@@ -276,3 +276,80 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .stars button { color: var(--glass-border); transition: all 0.2s ease; }
 .stars button.active { color: var(--warning); transform: scale(1.1); }
 .rating-text { font-weight: 700; color: var(--warning); height: 20px; }
+
+/* =============================================
+   AUTH PAGE (Giriş Yap / Kaydol)
+   ============================================= */
+.auth-page { min-height: calc(100vh - 80px); display: flex; align-items: center; justify-content: center; padding: 40px 24px; position: relative; }
+.auth-glow { position: absolute; top: -100px; left: 50%; transform: translateX(-50%); width: 700px; height: 700px; background: radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%); pointer-events: none; z-index: 0; }
+.auth-card { position: relative; z-index: 1; width: 100%; max-width: 440px; padding: 48px 40px; display: flex; flex-direction: column; gap: 24px; }
+.auth-logo { font-size: 22px; font-weight: 800; text-align: center; letter-spacing: -0.5px; }
+.auth-tabs { display: flex; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 12px; padding: 4px; position: relative; overflow: hidden; }
+.auth-tab { flex: 1; padding: 10px; font-weight: 600; font-size: 14px; color: var(--text-muted); border-radius: 9px; transition: all 0.3s ease; position: relative; z-index: 2; }
+.auth-tab.active { color: var(--foreground); }
+.auth-tab-indicator { position: absolute; top: 4px; left: 4px; width: calc(50% - 4px); height: calc(100% - 8px); background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 9px; transition: transform 0.3s ease; z-index: 1; }
+.auth-tab-indicator.right { transform: translateX(100%); }
+.google-btn { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 13px; border: 1px solid var(--glass-border); border-radius: 12px; background: rgba(255,255,255,0.04); font-weight: 600; font-size: 15px; transition: all 0.3s ease; color: var(--foreground); }
+.google-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); transform: translateY(-1px); }
+.google-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.auth-divider { display: flex; align-items: center; gap: 12px; color: var(--text-muted); font-size: 13px; }
+.auth-divider::before, .auth-divider::after { content: ""; flex: 1; height: 1px; background: var(--glass-border); }
+.auth-form { display: flex; flex-direction: column; gap: 16px; }
+.password-wrap { position: relative; }
+.password-wrap input { width: 100%; padding-right: 48px; }
+.eye-btn { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); transition: color 0.2s ease; }
+.eye-btn:hover { color: var(--foreground); }
+.forgot-link { font-size: 13px; color: var(--primary); text-align: right; margin-top: -8px; }
+.forgot-link:hover { text-decoration: underline; }
+.auth-notice { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+.auth-notice a { color: var(--primary); }
+.auth-submit { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; padding: 14px; margin-top: 4px; }
+.auth-switch { text-align: center; font-size: 14px; color: var(--text-muted); }
+.auth-switch button { color: var(--primary); font-weight: 600; text-decoration: underline; }
+
+/* =============================================
+   HESABIM PAGE (Account Settings)
+   ============================================= */
+.hesabim { padding-top: 40px; padding-bottom: 80px; }
+.hesabim-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; flex-wrap: wrap; gap: 16px; }
+.user-greeting { display: flex; align-items: center; gap: 16px; }
+.hesabim-avatar { width: 56px; height: 56px; border-radius: 50%; border: 3px solid var(--primary); }
+.user-greeting h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.user-greeting p { font-size: 14px; color: var(--text-muted); }
+.logout-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: 1px solid var(--glass-border); border-radius: 10px; color: var(--text-muted); font-weight: 600; transition: all 0.3s ease; }
+.logout-btn:hover { border-color: var(--accent); color: var(--accent); }
+.hesabim-layout { display: grid; grid-template-columns: 220px 1fr; gap: 24px; align-items: start; }
+.hesabim-sidebar { padding: 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 100px; }
+.sidebar-tab { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; font-weight: 500; font-size: 14px; color: var(--text-muted); transition: all 0.2s ease; text-align: left; }
+.sidebar-tab:hover { background: rgba(255,255,255,0.04); color: var(--foreground); }
+.sidebar-tab.active { background: rgba(99,102,241,0.12); color: var(--primary); font-weight: 600; }
+.hesabim-content { padding: 40px; }
+.tab-header { display: flex; align-items: center; gap: 12px; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--glass-border); }
+.tab-header h2 { font-size: 20px; font-weight: 700; }
+.tab-header svg { color: var(--primary); }
+.settings-form { display: flex; flex-direction: column; gap: 20px; }
+.settings-avatar-row { display: flex; align-items: center; gap: 20px; padding: 20px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--glass-border); }
+.settings-avatar { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--primary); }
+.settings-label { font-weight: 600; margin-bottom: 4px; }
+.save-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; font-size: 15px; margin-top: 8px; }
+.verify-info-box { background: rgba(99,102,241,0.07); border: 1px solid rgba(99,102,241,0.2); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; font-size: 14px; line-height: 1.6; color: var(--text-muted); }
+.verify-info-box strong { color: var(--foreground); }
+.verify-success-inline { display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center; padding: 40px 0; }
+.verify-success-inline h3 { font-size: 22px; font-weight: 700; color: var(--success); }
+.verify-success-inline p { color: var(--text-muted); max-width: 400px; line-height: 1.6; }
+.error-msg { color: var(--accent); font-size: 14px; text-align: center; }
+.danger-zone h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.connected-account { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; }
+.danger-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: 1px solid var(--accent); border-radius: 10px; color: var(--accent); font-weight: 600; transition: all 0.3s ease; }
+.danger-btn:hover { background: rgba(244,63,94,0.1); }
+.nav-hesabim { color: var(--text-muted); font-weight: 500; transition: color 0.3s ease; }
+.nav-hesabim:hover { color: var(--foreground); }
+.auth-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 80px); gap: 16px; color: var(--text-muted); }
+.auth-required { display: flex; align-items: center; justify-content: center; min-height: calc(100vh - 80px); padding: 40px; }
+.auth-required-card { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 48px; text-align: center; max-width: 400px; }
+.auth-required-card h2 { font-size: 22px; font-weight: 700; }
+.auth-required-card p { color: var(--text-muted); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (max-width: 768px) { .hesabim-layout { grid-template-columns: 1fr; } .hesabim-sidebar { position: relative; top: 0; flex-direction: row; flex-wrap: wrap; } .hesabim-content { padding: 24px; } .auth-card { padding: 32px 24px; } }
+
