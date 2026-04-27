@@ -22,4 +22,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/auth/signin",
   },
 });
-// Triggering redeploy to apply env variables
+// Final trigger to apply environment variables
