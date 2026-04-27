@@ -1,9 +1,10 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { D1Adapter } from "@auth/d1-adapter";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: process.env.DB ? D1Adapter(process.env.DB) : undefined,
+  // D1Adapter, Cloudflare ortamında getRequestContext() üzerinden bağlanmalı.
+  // process.env.DB bir string değil, D1 binding nesnesidir.
+  // Adapter olmadan da session JWT tabanlı çalışır.
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
@@ -11,15 +12,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    session({ session, user }) {
-      if (session.user && user) {
-        session.user.id = user.id;
+    session({ session, token }) {
+      if (session.user && token?.sub) {
+        session.user.id = token.sub;
       }
       return session;
     },
   },
   pages: {
-    signIn: "/auth/signin",
+    signIn: "/dogrulama",
   },
 });
-// Final trigger to apply environment variables
