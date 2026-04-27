@@ -1,36 +1,39 @@
-import { Search, MapPin, Clock, Filter } from "lucide-react";
+export const runtime = "edge";
 
-export default function JobBoardPage() {
-  // Mock data for jobs
-  const jobs = [
+import { Search, Clock, Filter } from "lucide-react";
+import { getRequestContext } from "@cloudflare/next-on-pages";
+
+export default async function JobBoardPage() {
+  let dbJobs: any[] = [];
+  
+  try {
+    const { env } = getRequestContext();
+    const db = env.DB;
+    if (db) {
+      const { results } = await db.prepare("SELECT * FROM jobs ORDER BY created_at DESC").all();
+      dbJobs = results || [];
+    }
+  } catch (e) {
+    console.error("D1 connection failed, using mock data", e);
+  }
+
+  // Mock data for fallback
+  const mockJobs = [
     {
       id: "1",
-      title: "Next.js ile E-Ticaret Arayüzü",
+      title: "Next.js ile E-Ticaret Arayüzü (Demo)",
       client: "Dijital Akademi",
       budget: "15.000 - 20.000 TL",
       category: "Yazılım",
       time: "2 saat önce",
       description: "Mevcut Figma tasarımımızı Next.js ve Tailwind kullanarak koda dökecek bir freelancer arıyoruz...",
-    },
-    {
-      id: "2",
-      title: "Modern Logo Tasarımı",
-      client: "Luna Coffee",
-      budget: "2.500 - 4.000 TL",
-      category: "Tasarım",
-      time: "5 saat önce",
-      description: "Yeni kahve markamız için minimalist ve akılda kalıcı bir logo tasarımına ihtiyacımız var.",
-    },
-    {
-      id: "3",
-      title: "Mobil Uygulama Çevirisi (İngilizce - Türkçe)",
-      client: "AppWorld",
-      budget: "3.000 TL",
-      category: "Çeviri",
-      time: "1 gün önce",
-      description: "5000 kelimelik bir mobil uygulama içeriğinin yerelleştirilmesi işidir.",
-    },
+    }
   ];
+
+  const jobs = dbJobs.length > 0 ? dbJobs.map(j => ({
+    ...j,
+    time: "Yeni İlan", // Simplified for DB results
+  })) : mockJobs;
 
   return (
     <div className="job-board container">
@@ -47,7 +50,6 @@ export default function JobBoardPage() {
       </div>
 
       <div className="board-layout">
-        {/* Categories Sidebar */}
         <aside className="filters-sidebar">
           <h3>Kategoriler</h3>
           <div className="filter-list">
@@ -60,7 +62,6 @@ export default function JobBoardPage() {
           </div>
         </aside>
 
-        {/* Job List */}
         <main className="job-list">
           <div className="list-header">
             <h2>Aktif İlanlar ({jobs.length})</h2>
@@ -77,8 +78,8 @@ export default function JobBoardPage() {
                   <span className="category-badge">{job.category}</span>
                   <h3 className="job-title">{job.title}</h3>
                   <div className="job-meta">
-                    <span><Search size={14} /> {job.client}</span>
-                    <span><Clock size={14} /> {job.time}</span>
+                    <span><Search size={14} /> {job.client || 'Anonim'}</span>
+                    <span><Clock size={14} /> {job.time || 'Yeni'}</span>
                   </div>
                 </div>
                 <div className="job-budget">{job.budget}</div>
@@ -92,8 +93,6 @@ export default function JobBoardPage() {
           ))}
         </main>
       </div>
-
-
     </div>
   );
 }
