@@ -1,4 +1,5 @@
 "use client";
+export const runtime = "edge";
 
 import { useState } from "react";
 import { Star, MessageSquare, Send, CheckCircle2 } from "lucide-react";

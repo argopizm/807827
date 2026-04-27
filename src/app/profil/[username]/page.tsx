@@ -1,3 +1,7 @@
+"use client";
+export const runtime = 'edge';
+
+import { useState } from "react";
 import AdSenseSlot from "@/components/AdSenseSlot";
 
 export default function ProfilePage({ params }: { params: { username: string } }) {
