@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { verifyPassword } from "@/auth";
 import { createServerSupabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";

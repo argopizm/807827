@@ -1,122 +1,57 @@
 export const runtime = 'edge';
 
 import { auth } from "@/auth";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { createServerSupabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
-  // 1. Kimlik kontrolü
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: "Bu işlem için giriş yapmanız gerekiyor." },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Bu işlem için giriş yapmanız gerekiyor." }, { status: 401 });
   }
 
   const freelancerId = session.user.id;
-
-  let body: { jobId?: string; clientId?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
-  }
-
-  const { jobId, clientId } = body;
+  const body = await request.json().catch(() => null);
+  const { jobId, clientId } = body ?? {};
 
   if (!jobId || !clientId) {
     return NextResponse.json({ error: "jobId ve clientId gerekli." }, { status: 400 });
   }
-
-  // Kendi ilanına başvuramaz
   if (freelancerId === clientId) {
-    return NextResponse.json(
-      { error: "Kendi ilanınıza el sıkışma talebi gönderemezsiniz." },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Kendi ilanınıza teklif gönderemezsiniz." }, { status: 400 });
   }
 
-  // 2. Veritabanı işlemleri
   try {
-    const { env } = getRequestContext();
-    const db = env.DB;
+    const supabase = createServerSupabase();
 
-    if (!db) {
-      // Demo mod: DB bağlı değil, başarı simüle et
-      return NextResponse.json({
-        success: true,
-        message: "El sıkışma talebi gönderildi (demo).",
-        id: `demo-${Date.now()}`,
-      });
-    }
+    // İlanı kontrol et
+    const { data: job } = await supabase.from("jobs").select("id, is_active").eq("id", jobId).single();
+    if (!job) return NextResponse.json({ error: "İlan bulunamadı." }, { status: 404 });
+    if (!job.is_active) return NextResponse.json({ error: "Bu ilan artık aktif değil." }, { status: 400 });
 
-    // Kullanıcı DB'de yoksa oluştur (Google OAuth ilk girişte)
-    await db
-      .prepare(`
-        INSERT OR IGNORE INTO users (id, email, full_name, avatar_url)
-        VALUES (?, ?, ?, ?)
-      `)
-      .bind(
-        freelancerId,
-        session.user.email ?? "",
-        session.user.name ?? "",
-        session.user.image ?? ""
-      )
-      .run();
+    // Daha önce başvuru var mı?
+    const { data: existing } = await supabase
+      .from("handshakes")
+      .select("id")
+      .eq("job_id", jobId)
+      .eq("sender_id", freelancerId)
+      .neq("status", "cancelled")
+      .single();
 
-    // İlanın var olup olmadığını kontrol et
-    const job = await db
-      .prepare("SELECT id, status FROM jobs WHERE id = ?")
-      .bind(jobId)
-      .first<{ id: string; status: string }>();
+    if (existing) return NextResponse.json({ error: "Bu iş için zaten bir talebiniz var." }, { status: 409 });
 
-    if (!job) {
-      return NextResponse.json({ error: "İlan bulunamadı." }, { status: 404 });
-    }
+    // Handshake oluştur
+    const { data: handshake, error } = await supabase
+      .from("handshakes")
+      .insert({ job_id: jobId, sender_id: freelancerId, receiver_id: clientId, status: "pending" })
+      .select("id")
+      .single();
 
-    if (job.status !== "open") {
-      return NextResponse.json(
-        { error: "Bu ilan artık aktif değil." },
-        { status: 400 }
-      );
-    }
+    if (error) throw error;
 
-    // Daha önce el sıkışma talebi gönderilmiş mi?
-    const existing = await db
-      .prepare(
-        "SELECT id FROM handshakes WHERE job_id = ? AND freelancer_id = ? AND status != 'cancelled'"
-      )
-      .bind(jobId, freelancerId)
-      .first();
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "Bu iş için zaten bir talebiniz var." },
-        { status: 409 }
-      );
-    }
-
-    // El sıkışma kaydı oluştur
-    const handshakeId = crypto.randomUUID();
-    await db
-      .prepare(`
-        INSERT INTO handshakes (id, job_id, freelancer_id, client_id, status)
-        VALUES (?, ?, ?, ?, 'pending')
-      `)
-      .bind(handshakeId, jobId, freelancerId, clientId)
-      .run();
-
-    return NextResponse.json({
-      success: true,
-      message: "El sıkışma talebi başarıyla gönderildi.",
-      id: handshakeId,
-    });
-  } catch (err) {
-    console.error("Handshake API error:", err);
-    return NextResponse.json(
-      { error: "Sunucu hatası. Lütfen tekrar deneyin." },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true, message: "El sıkışma talebi gönderildi.", id: handshake.id });
+  } catch (e) {
+    console.error("[handshake]", e);
+    return NextResponse.json({ error: "Sunucu hatası." }, { status: 500 });
   }
 }
