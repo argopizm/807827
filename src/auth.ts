@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import { getRequestContext } from "@cloudflare/next-on-pages";
 
 // Web Crypto PBKDF2 — Cloudflare Workers edge runtime compatible
 export async function hashPassword(password: string): Promise<{ hash: string; salt: string }> {
@@ -20,13 +21,18 @@ export async function verifyPassword(password: string, hash: string, salt: strin
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  // AUTH_SECRET env var'ı Cloudflare'de kesinlikle ayarlanmış olmalı
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  // trustHost: CF Pages'de farklı subdomain'lerde çalışması için şart
   trustHost: true,
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-    }),
+    // Google'ı sadece credentials varsa ekle
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+      ? [Google({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        })]
+      : []),
     Credentials({
       id: "credentials",
       name: "E-posta",
@@ -34,30 +40,61 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "E-posta", type: "email" },
         password: { label: "Şifre", type: "password" },
       },
-      // request parametresi ile gerçek host URL'ini alıyoruz
-      // Bu sayede preview deployment'larda da doğru URL kullanılır
-      async authorize(credentials, request) {
+      async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+
+        const email = (credentials.email as string).toLowerCase().trim();
+        const password = credentials.password as string;
+
         try {
-          // request.url'den gerçek host'u al (preview URL'leri de dahil)
-          const reqUrl = new URL(request.url);
-          const base = `${reqUrl.protocol}//${reqUrl.host}`;
-          const res = await fetch(`${base}/api/verify-login`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              // Sonsuz döngüyü önlemek için internal header
-              "X-Internal-Auth": process.env.AUTH_SECRET ?? "internal",
-            },
-            body: JSON.stringify({ email: credentials.email, password: credentials.password }),
-          });
-          if (!res.ok) {
-            console.error("[authorize] verify-login returned:", res.status);
+          // getRequestContext() - Cloudflare Workers edge runtime'da çalışır
+          // authorize() sadece istek sırasında çağrılır, build sırasında değil
+          const { env } = getRequestContext();
+          const db = (env as Record<string, unknown>).DB as D1Database | undefined;
+
+          if (!db) {
+            console.error("[authorize] D1 DB binding not found in env");
             return null;
           }
-          return await res.json() as { id: string; email: string; name: string | null; image: string | null };
+
+          const user = await db
+            .prepare(
+              "SELECT id, email, full_name, avatar_url, password_hash, password_salt FROM users WHERE LOWER(email) = ?"
+            )
+            .bind(email)
+            .first<{
+              id: string;
+              email: string;
+              full_name: string | null;
+              avatar_url: string | null;
+              password_hash: string | null;
+              password_salt: string | null;
+            }>();
+
+          if (!user) {
+            console.log("[authorize] User not found:", email);
+            return null;
+          }
+
+          if (!user.password_hash || !user.password_salt) {
+            console.log("[authorize] No password — Google-only account:", email);
+            return null;
+          }
+
+          const valid = await verifyPassword(password, user.password_hash, user.password_salt);
+          if (!valid) {
+            console.log("[authorize] Wrong password for:", email);
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.full_name,
+            image: user.avatar_url,
+          };
         } catch (e) {
-          console.error("[authorize] error:", e);
+          console.error("[authorize] Exception:", e);
           return null;
         }
       },
