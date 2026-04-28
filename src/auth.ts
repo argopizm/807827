@@ -34,20 +34,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "E-posta", type: "email" },
         password: { label: "Şifre", type: "password" },
       },
-      async authorize(credentials) {
+      // request parametresi ile gerçek host URL'ini alıyoruz
+      // Bu sayede preview deployment'larda da doğru URL kullanılır
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) return null;
         try {
-          // Use a dedicated API route to avoid getRequestContext issues inside NextAuth
-          const base = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://807827.pages.dev";
+          // request.url'den gerçek host'u al (preview URL'leri de dahil)
+          const reqUrl = new URL(request.url);
+          const base = `${reqUrl.protocol}//${reqUrl.host}`;
           const res = await fetch(`${base}/api/verify-login`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              // Sonsuz döngüyü önlemek için internal header
+              "X-Internal-Auth": process.env.AUTH_SECRET ?? "internal",
+            },
             body: JSON.stringify({ email: credentials.email, password: credentials.password }),
           });
-          if (!res.ok) return null;
+          if (!res.ok) {
+            console.error("[authorize] verify-login returned:", res.status);
+            return null;
+          }
           return await res.json() as { id: string; email: string; name: string | null; image: string | null };
         } catch (e) {
-          console.error("[authorize]", e);
+          console.error("[authorize] error:", e);
           return null;
         }
       },

@@ -16,7 +16,7 @@ type EmployerTab = "dashboard" | "ilanlarim" | "profil" | "guvenlik";
 export default function HesabimPage() {
   const { data: session, status } = useSession();
   const [userType, setUserType] = useState<UserType>(null);
-  const [loadingType, setLoadingType] = useState(true);
+  const [typeLoaded, setTypeLoaded] = useState(false);
   const [saved, setSaved] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyStatus, setVerifyStatus] = useState<"idle" | "success" | "error">("idle");
@@ -24,16 +24,18 @@ export default function HesabimPage() {
   const [empTab, setEmpTab] = useState<EmployerTab>("dashboard");
 
   useEffect(() => {
-    if (status === "authenticated") {
-      fetch("/api/user/type")
-        .then(r => r.json())
-        .then((d: { user_type: string | null }) => {
-          setUserType((d.user_type as UserType) ?? null);
-          setLoadingType(false);
-        })
-        .catch(() => setLoadingType(false));
-    }
-  }, [status]);
+    // Her durumda user type yükle — session bağımsız
+    const timer = setTimeout(() => setTypeLoaded(true), 6000); // 6s timeout
+    fetch("/api/user/type")
+      .then(r => r.ok ? r.json() : Promise.resolve({ user_type: null }))
+      .then((d: { user_type: string | null }) => {
+        setUserType((d.user_type as UserType) ?? null);
+        setTypeLoaded(true);
+        clearTimeout(timer);
+      })
+      .catch(() => { setTypeLoaded(true); clearTimeout(timer); });
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +49,8 @@ export default function HesabimPage() {
     setTimeout(() => { setVerifyLoading(false); setVerifyStatus("success"); }, 2000);
   };
 
-  if (status === "loading" || loadingType) {
+  // Session yüklenirken ve user type gelmemişse bekle (max 6 saniye)
+  if (status === "loading" && !typeLoaded) {
     return <div className="auth-loading"><Loader2 className="spin" size={40} /><p>Yükleniyor...</p></div>;
   }
 

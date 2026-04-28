@@ -64,22 +64,30 @@ function GirisForm() {
           return;
         }
         setMsg({ type: "success", text: "Kayıt başarılı! Giriş yapılıyor..." });
-        const result = await signIn("credentials", { email, password, callbackUrl: "/", redirect: false });
+        // Otomatik giriş — yeni kullanıcıyı onboarding'e yönlendir
+        const result = await signIn("credentials", { email, password, callbackUrl: "/onboarding", redirect: false });
         if (result?.error) {
-          setMsg({ type: "error", text: "Kayıt tamam, ancak otomatik giriş başarısız. Manuel giriş yapın." });
+          setMsg({ type: "info", text: "Kayıt tamam! Şimdi giriş yapın." });
           setMode("giris");
         } else {
-          window.location.href = result?.url ?? "/";
+          window.location.href = result?.url ?? "/onboarding";
         }
       } catch {
         setMsg({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
       }
     } else {
-      const result = await signIn("credentials", { email, password, callbackUrl: "/", redirect: false });
+      // Giriş — daha açıklayıcı hata mesajları
+      const result = await signIn("credentials", { email, password, callbackUrl: "/hesabim", redirect: false });
       if (result?.error) {
-        setMsg({ type: "error", text: "E-posta veya şifre hatalı." });
+        if (result.error === "CredentialsSignin") {
+          setMsg({ type: "error", text: "E-posta veya şifre hatalı. Google hesabınızla kaydolduysanız Google ile giriş yapın." });
+        } else {
+          setMsg({ type: "error", text: `Giriş başarısız: ${result.error}` });
+        }
       } else if (result?.url) {
         window.location.href = result.url;
+      } else {
+        window.location.href = "/hesabim";
       }
     }
     setLoading(false);
