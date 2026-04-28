@@ -102,6 +102,28 @@ button {
 .nav-links a:hover { color: var(--foreground); }
 .footer { padding: 40px 0; border-top: 1px solid var(--glass-border); text-align: center; color: var(--text-muted); margin-top: 80px; }
 
+/* ─── NAVBAR USER MENU ─── */
+.nav-login-btn { padding: 9px 20px; font-size: 14px; font-weight: 600; border-radius: 10px; }
+.nav-avatar-skeleton { width: 36px; height: 36px; border-radius: 50%; background: var(--glass); border: 1px solid var(--glass-border); }
+.nav-user-menu { position: relative; }
+.nav-avatar-btn { display: flex; align-items: center; gap: 8px; padding: 5px 10px 5px 5px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 100px; transition: all 0.2s ease; cursor: pointer; }
+.nav-avatar-btn:hover { background: var(--glass-highlight); border-color: rgba(255,255,255,0.15); }
+.nav-avatar-img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.nav-avatar-name { font-size: 13px; font-weight: 600; color: var(--foreground); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-chevron { color: var(--text-muted); transition: transform 0.2s ease; }
+.nav-chevron.open { transform: rotate(180deg); }
+.nav-dropdown { position: absolute; right: 0; top: calc(100% + 12px); width: 230px; padding: 8px; z-index: 999; animation: fadeIn 0.15s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+.nav-dropdown-header { display: flex; align-items: center; gap: 10px; padding: 10px 8px 10px 8px; }
+.nav-dropdown-avatar { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.nav-dropdown-name { font-size: 14px; font-weight: 700; color: var(--foreground); }
+.nav-dropdown-email { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.nav-dropdown-divider { border: none; border-top: 1px solid var(--glass-border); margin: 4px 0; }
+.nav-dropdown-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 12px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--foreground); text-decoration: none; transition: background 0.15s; }
+.nav-dropdown-item:hover { background: var(--glass-highlight); }
+.nav-dropdown-item.danger { color: var(--accent); }
+.nav-dropdown-item.danger:hover { background: rgba(244,63,94,0.08); }
+
 /* ─── HOME PAGE ─── */
 .home { padding-bottom: 0; }
 .btn-secondary { padding: 12px 24px; border: 1px solid var(--glass-border); border-radius: 12px; font-weight: 600; color: var(--foreground); transition: all 0.3s ease; display: inline-block; }

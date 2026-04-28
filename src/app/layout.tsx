@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Providers } from "@/components/Providers";
+import NavbarClient from "@/components/NavbarClient";
 
 export const metadata: Metadata = {
   title: "Freelancer Türkiye | Komisyonsuz Freelancer Platformu",
@@ -15,13 +17,9 @@ export const metadata: Metadata = {
   },
 };
 
-import { Providers } from "@/components/Providers";
-
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="tr">
       <body>
@@ -34,8 +32,8 @@ export default function RootLayout({
               <div className="nav-links">
                 <a href="/ilanlar">İş İlanları</a>
                 <a href="/profil">Freelancer Bul</a>
-                <a href="/hesabim" className="nav-hesabim">Hesabım</a>
-                <a href="/giris" className="btn-primary" style={{ textDecoration: 'none', display: 'inline-block' }}>Giriş Yap</a>
+                {/* Giriş durumuna göre navbar değişir — NavbarClient */}
+                <NavbarClient />
               </div>
             </div>
           </nav>
@@ -46,8 +44,6 @@ export default function RootLayout({
             </div>
           </footer>
         </Providers>
-
-
       </body>
     </html>
   );

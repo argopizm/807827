@@ -5,11 +5,10 @@ import { useState, useEffect } from "react";
 import {
   User, Mail, ShieldCheck, LogOut, Save, Briefcase,
   Fingerprint, Calendar, Loader2, Edit3, CheckCircle2,
-  Code2, FileText, Star, Plus, Settings, ChevronRight, Link2
+  Code2, FileText, Star, Plus, Settings, ChevronRight
 } from "lucide-react";
 
 type UserType = "freelancer" | "employer" | null;
-type Tab = "genel" | "profil" | "dogrulama" | "guvenlik";
 type FreelancerTab = "dashboard" | "profil" | "ilanlar" | "dogrulama";
 type EmployerTab = "dashboard" | "ilanlarim" | "profil" | "guvenlik";
 
@@ -24,10 +23,9 @@ export default function HesabimPage() {
   const [empTab, setEmpTab] = useState<EmployerTab>("dashboard");
 
   useEffect(() => {
-    // Her durumda user type yükle — session bağımsız
-    const timer = setTimeout(() => setTypeLoaded(true), 6000); // 6s timeout
+    const timer = setTimeout(() => setTypeLoaded(true), 6000);
     fetch("/api/user/type")
-      .then(r => r.ok ? r.json() : Promise.resolve({ user_type: null }))
+      .then(r => r.ok ? r.json() : { user_type: null })
       .then((d: { user_type: string | null }) => {
         setUserType((d.user_type as UserType) ?? null);
         setTypeLoaded(true);
@@ -37,23 +35,15 @@ export default function HesabimPage() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
-  };
+  const handleSave = (e: React.FormEvent) => { e.preventDefault(); setSaved(true); setTimeout(() => setSaved(false), 2500); };
+  const handleVerify = async (e: React.FormEvent) => { e.preventDefault(); setVerifyLoading(true); setTimeout(() => { setVerifyLoading(false); setVerifyStatus("success"); }, 2000); };
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setVerifyLoading(true);
-    setTimeout(() => { setVerifyLoading(false); setVerifyStatus("success"); }, 2000);
-  };
-
-  // Session yüklenirken ve user type gelmemişse bekle (max 6 saniye)
+  // Loading state
   if (status === "loading" && !typeLoaded) {
     return <div className="auth-loading"><Loader2 className="spin" size={40} /><p>Yükleniyor...</p></div>;
   }
 
+  // Not authenticated
   if (status === "unauthenticated") {
     return (
       <div className="auth-required">
@@ -67,8 +57,8 @@ export default function HesabimPage() {
     );
   }
 
-  // Onboarding yönlendirmesi
-  if (!userType && !loadingType) {
+  // Onboarding yönlendirmesi — typeLoaded olduktan sonra kontrol et
+  if (typeLoaded && status === "authenticated" && !userType) {
     return (
       <div className="auth-required">
         <div className="glass-card auth-required-card">
@@ -83,7 +73,7 @@ export default function HesabimPage() {
     );
   }
 
-  const avatar = session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name}`;
+  const avatar = session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${session?.user?.name ?? "user"}`;
   const firstName = session?.user?.name?.split(" ")[0] ?? "Kullanıcı";
 
   // ─── FREELANCER PANELİ ───
@@ -94,7 +84,6 @@ export default function HesabimPage() {
       { key: "ilanlar", icon: <FileText size={16} />, label: "Başvurularım" },
       { key: "dogrulama", icon: <ShieldCheck size={16} />, label: "Kimlik Doğrula" },
     ];
-
     return (
       <div className="hesabim container">
         <div className="hesabim-header">
@@ -105,22 +94,16 @@ export default function HesabimPage() {
               <p className="user-type-badge freelancer-badge"><Code2 size={12} /> Freelancer</p>
             </div>
           </div>
-          <button className="logout-btn" onClick={() => signOut({ callbackUrl: "/" })}>
-            <LogOut size={16} /> Çıkış Yap
-          </button>
+          <button className="logout-btn" onClick={() => signOut({ callbackUrl: "/" })}><LogOut size={16} /> Çıkış Yap</button>
         </div>
 
         <div className="hesabim-layout">
           <aside className="hesabim-sidebar glass-card">
             {tabs.map(t => (
-              <button key={t.key} className={`sidebar-tab ${flTab === t.key ? "active" : ""}`} onClick={() => setFlTab(t.key)}>
-                {t.icon}{t.label}
-              </button>
+              <button key={t.key} className={`sidebar-tab ${flTab === t.key ? "active" : ""}`} onClick={() => setFlTab(t.key)}>{t.icon}{t.label}</button>
             ))}
             <hr className="divider" style={{ margin: "8px 0" }} />
-            <button className="sidebar-tab" onClick={() => window.location.href = "/ilanlar"}>
-              <FileText size={16} /> İş İlanlarına Bak
-            </button>
+            <button className="sidebar-tab" onClick={() => window.location.href = "/ilanlar"}><FileText size={16} /> İş İlanlarına Bak</button>
           </aside>
 
           <main className="hesabim-content glass-card">
@@ -128,29 +111,19 @@ export default function HesabimPage() {
               <div className="tab-content">
                 <div className="tab-header"><Code2 size={20} /><h2>Freelancer Özet</h2></div>
                 <div className="dashboard-stats">
-                  {[
-                    { icon: <FileText size={24} />, val: "0", label: "Başvuru" },
-                    { icon: <Star size={24} />, val: "–", label: "Puan" },
-                    { icon: <CheckCircle2 size={24} />, val: "0", label: "Tamamlanan" },
-                  ].map(s => (
-                    <div key={s.label} className="glass-card dash-stat">
-                      <div className="dash-icon">{s.icon}</div>
-                      <strong className="gradient-text">{s.val}</strong>
-                      <span>{s.label}</span>
-                    </div>
+                  {[{ icon: <FileText size={24} />, val: "0", label: "Başvuru" }, { icon: <Star size={24} />, val: "–", label: "Puan" }, { icon: <CheckCircle2 size={24} />, val: "0", label: "Tamamlanan" }].map(s => (
+                    <div key={s.label} className="glass-card dash-stat"><div className="dash-icon">{s.icon}</div><strong className="gradient-text">{s.val}</strong><span>{s.label}</span></div>
                   ))}
                 </div>
                 <div className="dash-actions">
                   <a href="/ilanlar" className="btn-primary dash-action-btn"><FileText size={16} /> İş İlanlarını Gör</a>
                   <button className="btn-secondary dash-action-btn" onClick={() => setFlTab("profil")}><Edit3 size={16} /> Profilimi Düzenle</button>
                 </div>
-                {!verifyStatus && (
-                  <div className="dash-notice glass-card">
-                    <ShieldCheck size={18} color="var(--warning)" />
-                    <p>TC Kimliğinizi doğrulayarak <strong>Onaylı Profil</strong> rozeti kazanın ve daha fazla iş alın.</p>
-                    <button className="btn-secondary" onClick={() => setFlTab("dogrulama")}>Doğrula <ChevronRight size={14} /></button>
-                  </div>
-                )}
+                <div className="dash-notice glass-card">
+                  <ShieldCheck size={18} color="var(--warning)" />
+                  <p>TC Kimliğinizi doğrulayarak <strong>Onaylı Profil</strong> rozeti kazanın.</p>
+                  <button className="btn-secondary" style={{ padding: "8px 14px", fontSize: "13px" }} onClick={() => setFlTab("dogrulama")}>Doğrula <ChevronRight size={14} /></button>
+                </div>
               </div>
             )}
 
@@ -160,25 +133,22 @@ export default function HesabimPage() {
                 <form className="settings-form" onSubmit={handleSave}>
                   <div className="settings-avatar-row">
                     <img src={avatar} alt="avatar" className="settings-avatar" />
-                    <div>
-                      <p className="settings-label">Profil Fotoğrafı</p>
-                      <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Google/kayıt fotoğrafınızdan alınır.</p>
-                    </div>
+                    <div><p className="settings-label">Profil Fotoğrafı</p><p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Google/kayıt fotoğrafınızdan alınır.</p></div>
                   </div>
                   <div className="form-row">
                     <div className="input-group"><label><User size={14} /> Ad Soyad</label><input type="text" defaultValue={session?.user?.name || ""} /></div>
                     <div className="input-group"><label><Mail size={14} /> E-posta</label><input type="email" defaultValue={session?.user?.email || ""} disabled style={{ opacity: 0.5 }} /></div>
                   </div>
                   <div className="input-group"><label>Kullanıcı Adı</label><input type="text" placeholder="@kullanici_adi" /></div>
-                  <div className="input-group"><label>Uzmanlık Alanı</label><input type="text" placeholder="Full Stack Developer, UI/UX Tasarımcı..." /></div>
-                  <div className="input-group"><label>Hakkımda</label><textarea rows={4} placeholder="Kendinizi tanıtın, uzmanlık alanlarınızı ve deneyimlerinizi paylaşın..." /></div>
+                  <div className="input-group"><label>Uzmanlık Alanı</label><input type="text" placeholder="Full Stack Developer..." /></div>
+                  <div className="input-group"><label>Hakkımda</label><textarea rows={4} placeholder="Kendinizi tanıtın..." /></div>
                   <div className="form-row">
-                    <div className="input-group"><label><Link size={14} /> WhatsApp</label><input type="text" placeholder="905XXXXXXXXX" /></div>
+                    <div className="input-group"><label>WhatsApp</label><input type="text" placeholder="905XXXXXXXXX" /></div>
                     <div className="input-group"><label>Discord</label><input type="text" placeholder="kullanici#1234" /></div>
                   </div>
-                  <div className="input-group"><label>Portfolyo / Web Sitesi</label><input type="url" placeholder="https://portfolyonuz.com" /></div>
+                  <div className="input-group"><label>Portfolyo</label><input type="url" placeholder="https://portfolyonuz.com" /></div>
                   <button type="submit" className="btn-primary save-btn">
-                    {saved ? <><CheckCircle2 size={18} /> Kaydedildi!</> : <><Save size={18} /> Değişiklikleri Kaydet</>}
+                    {saved ? <><CheckCircle2 size={18} /> Kaydedildi!</> : <><Save size={18} /> Kaydet</>}
                   </button>
                 </form>
               </div>
@@ -207,7 +177,7 @@ export default function HesabimPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="verify-info-box"><p>TC Kimlik numaranızı doğrulayın, <strong>&quot;Onaylı Profil&quot;</strong> rozeti kazanın. Bilgiler sistemimizde saklanmaz.</p></div>
+                    <div className="verify-info-box"><p>TC Kimlik numaranızı doğrulayın, <strong>&quot;Onaylı Profil&quot;</strong> rozeti kazanın.</p></div>
                     <form onSubmit={handleVerify} className="settings-form">
                       <div className="form-row">
                         <div className="input-group"><label>Ad (Büyük Harf)</label><input type="text" placeholder="ALİ" required /></div>
@@ -247,22 +217,16 @@ export default function HesabimPage() {
             <p className="user-type-badge employer-badge"><Briefcase size={12} /> İşveren</p>
           </div>
         </div>
-        <button className="logout-btn" onClick={() => signOut({ callbackUrl: "/" })}>
-          <LogOut size={16} /> Çıkış Yap
-        </button>
+        <button className="logout-btn" onClick={() => signOut({ callbackUrl: "/" })}><LogOut size={16} /> Çıkış Yap</button>
       </div>
 
       <div className="hesabim-layout">
         <aside className="hesabim-sidebar glass-card">
           {empTabs.map(t => (
-            <button key={t.key} className={`sidebar-tab ${empTab === t.key ? "active" : ""}`} onClick={() => setEmpTab(t.key)}>
-              {t.icon}{t.label}
-            </button>
+            <button key={t.key} className={`sidebar-tab ${empTab === t.key ? "active" : ""}`} onClick={() => setEmpTab(t.key)}>{t.icon}{t.label}</button>
           ))}
           <hr className="divider" style={{ margin: "8px 0" }} />
-          <button className="sidebar-tab" onClick={() => window.location.href = "/profil"}>
-            <User size={16} /> Freelancer Bul
-          </button>
+          <button className="sidebar-tab" onClick={() => window.location.href = "/profil"}><User size={16} /> Freelancer Bul</button>
         </aside>
 
         <main className="hesabim-content glass-card">
@@ -270,16 +234,8 @@ export default function HesabimPage() {
             <div className="tab-content">
               <div className="tab-header"><Briefcase size={20} /><h2>İşveren Özet</h2></div>
               <div className="dashboard-stats">
-                {[
-                  { icon: <FileText size={24} />, val: "0", label: "Aktif İlan" },
-                  { icon: <CheckCircle2 size={24} />, val: "0", label: "Tamamlanan" },
-                  { icon: <User size={24} />, val: "0", label: "Toplam Başvuru" },
-                ].map(s => (
-                  <div key={s.label} className="glass-card dash-stat">
-                    <div className="dash-icon">{s.icon}</div>
-                    <strong className="gradient-text">{s.val}</strong>
-                    <span>{s.label}</span>
-                  </div>
+                {[{ icon: <FileText size={24} />, val: "0", label: "Aktif İlan" }, { icon: <CheckCircle2 size={24} />, val: "0", label: "Tamamlanan" }, { icon: <User size={24} />, val: "0", label: "Başvuru" }].map(s => (
+                  <div key={s.label} className="glass-card dash-stat"><div className="dash-icon">{s.icon}</div><strong className="gradient-text">{s.val}</strong><span>{s.label}</span></div>
                 ))}
               </div>
               <div className="dash-actions">
@@ -293,17 +249,13 @@ export default function HesabimPage() {
             <div className="tab-content">
               <div className="tab-header" style={{ justifyContent: "space-between" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}><FileText size={20} /><h2>İlanlarım</h2></div>
-                <a href="/ilan-ver" className="btn-primary" style={{ textDecoration: "none", display: "inline-flex", gap: "6px", padding: "8px 16px", fontSize: "14px" }}>
-                  <Plus size={16} /> Yeni İlan
-                </a>
+                <a href="/ilan-ver" className="btn-primary" style={{ textDecoration: "none", display: "inline-flex", gap: "6px", padding: "8px 16px", fontSize: "14px" }}><Plus size={16} /> Yeni İlan</a>
               </div>
               <div className="empty-state">
                 <Briefcase size={48} style={{ color: "var(--text-muted)" }} />
                 <h3>Henüz ilan yok</h3>
                 <p>İlk ilanınızı verin, freelancer başvurularını bekleyin.</p>
-                <a href="/ilan-ver" className="btn-primary" style={{ textDecoration: "none", display: "inline-flex", gap: "8px" }}>
-                  <Plus size={16} /> İlan Ver
-                </a>
+                <a href="/ilan-ver" className="btn-primary" style={{ textDecoration: "none", display: "inline-flex", gap: "8px" }}><Plus size={16} /> İlan Ver</a>
               </div>
             </div>
           )}
@@ -314,16 +266,13 @@ export default function HesabimPage() {
               <form className="settings-form" onSubmit={handleSave}>
                 <div className="settings-avatar-row">
                   <img src={avatar} alt="avatar" className="settings-avatar" />
-                  <div>
-                    <p className="settings-label">Profil Fotoğrafı</p>
-                    <p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Google/kayıt fotoğrafınızdan alınır.</p>
-                  </div>
+                  <div><p className="settings-label">Profil Fotoğrafı</p><p style={{ fontSize: "13px", color: "var(--text-muted)" }}>Google/kayıt fotoğrafınızdan alınır.</p></div>
                 </div>
                 <div className="form-row">
                   <div className="input-group"><label><User size={14} /> Ad Soyad</label><input type="text" defaultValue={session?.user?.name || ""} /></div>
                   <div className="input-group"><label><Mail size={14} /> E-posta</label><input type="email" defaultValue={session?.user?.email || ""} disabled style={{ opacity: 0.5 }} /></div>
                 </div>
-                <div className="input-group"><label>Şirket Adı (isteğe bağlı)</label><input type="text" placeholder="Şirket Adı A.Ş." /></div>
+                <div className="input-group"><label>Şirket Adı</label><input type="text" placeholder="Şirket Adı A.Ş." /></div>
                 <div className="input-group"><label>Hakkında</label><textarea rows={3} placeholder="Şirketiniz veya kendiniz hakkında..." /></div>
                 <button type="submit" className="btn-primary save-btn">
                   {saved ? <><CheckCircle2 size={18} /> Kaydedildi!</> : <><Save size={18} /> Kaydet</>}
@@ -339,9 +288,7 @@ export default function HesabimPage() {
                 <div className="danger-zone" style={{ marginTop: "8px" }}>
                   <h3 style={{ color: "var(--accent)" }}>Tehlikeli Bölge</h3>
                   <p style={{ color: "var(--text-muted)", fontSize: "14px", marginBottom: "16px" }}>Bu işlemler geri alınamaz.</p>
-                  <button className="danger-btn" onClick={() => signOut({ callbackUrl: "/" })}>
-                    <LogOut size={16} /> Tüm Cihazlardan Çıkış Yap
-                  </button>
+                  <button className="danger-btn" onClick={() => signOut({ callbackUrl: "/" })}><LogOut size={16} /> Tüm Cihazlardan Çıkış Yap</button>
                 </div>
               </div>
             </div>
