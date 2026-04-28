@@ -3,7 +3,4 @@ compatibility_date = "2024-09-23"
 compatibility_flags = [ "nodejs_compat" ]
 pages_build_output_dir = ".vercel/output/static"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "frelancer_db"
-database_id = "2b9ab9d6-644e-4682-a529-b9cbfa729d75"
+# D1 kaldırıldı — Supabase kullanılıyor

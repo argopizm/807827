@@ -1,41 +1,22 @@
-export const runtime = "edge";
-
 import { auth } from "@/auth";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { createServerSupabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { userType } = await request.json() as { userType: string };
+  const { userType } = await request.json().catch(() => ({}));
   if (!["freelancer", "employer"].includes(userType)) {
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   }
 
   try {
-    const { env } = getRequestContext();
-    const db = (env as Record<string, unknown>).DB as D1Database | undefined;
-    if (!db) return NextResponse.json({ success: true }); // Demo fallback
-
-    // Kullanıcı yoksa oluştur (Google ile giriş yapanlar)
-    await db.prepare(
-      `INSERT OR IGNORE INTO users (id, email, name, image) VALUES (?, ?, ?, ?)`
-    ).bind(
-      session.user.id,
-      session.user.email ?? "",
-      session.user.name ?? "",
-      session.user.image ?? ""
-    ).run();
-
-    await db.prepare(
-      "UPDATE users SET user_type = ?, onboarding_done = 1 WHERE id = ?"
-    ).bind(userType, session.user.id).run();
-
+    const supabase = createServerSupabase();
+    await supabase.from("users").update({ user_type: userType, onboarding_done: true }).eq("id", session.user.id);
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error("[user/type POST]", e);
-    return NextResponse.json({ error: "Server error: " + String(e) }, { status: 500 });
+    return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
 
@@ -44,19 +25,13 @@ export async function GET() {
   if (!session?.user?.id) return NextResponse.json({ user_type: null, onboarding_done: false });
 
   try {
-    const { env } = getRequestContext();
-    const db = (env as Record<string, unknown>).DB as D1Database | undefined;
-    if (!db) return NextResponse.json({ user_type: null, onboarding_done: false });
-
-    const user = await db
-      .prepare("SELECT user_type, onboarding_done FROM users WHERE id = ?")
-      .bind(session.user.id)
-      .first<{ user_type: string | null; onboarding_done: number }>();
-
-    return NextResponse.json({
-      user_type: user?.user_type ?? null,
-      onboarding_done: !!(user?.onboarding_done),
-    });
+    const supabase = createServerSupabase();
+    const { data } = await supabase
+      .from("users")
+      .select("user_type, onboarding_done")
+      .eq("id", session.user.id)
+      .single();
+    return NextResponse.json({ user_type: data?.user_type ?? null, onboarding_done: !!data?.onboarding_done });
   } catch {
     return NextResponse.json({ user_type: null, onboarding_done: false });
   }

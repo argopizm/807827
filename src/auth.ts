@@ -1,9 +1,9 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { SupabaseAdapter } from "@auth/supabase-adapter";
 
-// Web Crypto PBKDF2 — Cloudflare Workers edge runtime compatible
+// Web Crypto PBKDF2 — edge runtime compatible
 export async function hashPassword(password: string): Promise<{ hash: string; salt: string }> {
   const saltBytes = crypto.getRandomValues(new Uint8Array(16));
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
@@ -20,19 +20,19 @@ export async function verifyPassword(password: string, hash: string, salt: strin
   return computed === hash;
 }
 
+const supabaseUrl = process.env.SUPABASE_URL ?? "";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // AUTH_SECRET env var'ı Cloudflare'de kesinlikle ayarlanmış olmalı
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  // trustHost: CF Pages'de farklı subdomain'lerde çalışması için şart
+  secret: process.env.AUTH_SECRET,
   trustHost: true,
+  // Supabase Adapter — Google OAuth kullanıcılarını otomatik DB'ye kaydeder
+  adapter: SupabaseAdapter({ url: supabaseUrl, secret: supabaseServiceKey }),
   providers: [
-    // Google'ı sadece credentials varsa ekle
     ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? [Google({
-          clientId: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        })]
-      : []),
+      ? [Google({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET })]
+      : []
+    ),
     Credentials({
       id: "credentials",
       name: "E-posta",
@@ -42,59 +42,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-
-        const email = (credentials.email as string).toLowerCase().trim();
-        const password = credentials.password as string;
-
         try {
-          // getRequestContext() - Cloudflare Workers edge runtime'da çalışır
-          // authorize() sadece istek sırasında çağrılır, build sırasında değil
-          const { env } = getRequestContext();
-          const db = (env as Record<string, unknown>).DB as D1Database | undefined;
-
-          if (!db) {
-            console.error("[authorize] D1 DB binding not found in env");
-            return null;
-          }
-
-          const user = await db
-            .prepare(
-              "SELECT id, email, name, image, password_hash, password_salt FROM users WHERE LOWER(email) = ?"
-            )
-            .bind(email)
-            .first<{
-              id: string;
-              email: string;
-              name: string | null;
-              image: string | null;
-              password_hash: string | null;
-              password_salt: string | null;
-            }>();
-
-          if (!user) {
-            console.log("[authorize] User not found:", email);
-            return null;
-          }
-
-          if (!user.password_hash || !user.password_salt) {
-            console.log("[authorize] No password — Google-only account:", email);
-            return null;
-          }
-
-          const valid = await verifyPassword(password, user.password_hash, user.password_salt);
-          if (!valid) {
-            console.log("[authorize] Wrong password for:", email);
-            return null;
-          }
-
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            image: user.image,
-          };
+          const { createServerSupabase } = await import("@/lib/supabase");
+          const supabase = createServerSupabase();
+          const { data: user } = await supabase
+            .from("users")
+            .select("id, email, name, image, password_hash, password_salt")
+            .eq("email", (credentials.email as string).toLowerCase().trim())
+            .single();
+          if (!user?.password_hash || !user?.password_salt) return null;
+          const valid = await verifyPassword(credentials.password as string, user.password_hash, user.password_salt);
+          if (!valid) return null;
+          return { id: user.id, email: user.email, name: user.name, image: user.image };
         } catch (e) {
-          console.error("[authorize] Exception:", e);
+          console.error("[authorize]", e);
           return null;
         }
       },
@@ -102,28 +63,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async signIn({ user, account }) {
-      // Google ile giriş yapıldığında kullanıcıyı D1'a kaydet/güncelle
-      if (account?.provider === "google" && user.id && user.email) {
-        try {
-          const { getRequestContext } = await import("@cloudflare/next-on-pages");
-          const { env } = getRequestContext();
-          const db = (env as Record<string, unknown>).DB as D1Database | undefined;
-          if (db) {
-            await db.prepare(
-              `INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)
-               ON CONFLICT(email) DO UPDATE SET name = excluded.name, image = excluded.image`
-            )
-            .bind(user.id, user.email, user.name ?? "", user.image ?? "")
-            .run();
-          }
-        } catch (e) {
-          console.error("[signIn callback]", e);
-          // DB hatası olsa bile girişe izin ver
-        }
-      }
-      return true;
-    },
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
       return token;
@@ -133,8 +72,5 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session;
     },
   },
-  pages: {
-    signIn: "/giris",
-    error: "/giris",
-  },
+  pages: { signIn: "/giris", error: "/giris" },
 });

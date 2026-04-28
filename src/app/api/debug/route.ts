@@ -1,42 +1,27 @@
-export const runtime = "edge";
-
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { createServerSupabase } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
-// Geçici debug endpoint — env var ve DB durumunu kontrol etmek için
 export async function GET() {
   const result: Record<string, unknown> = {
-    auth_secret: !!process.env.AUTH_SECRET,
-    nextauth_secret: !!process.env.NEXTAUTH_SECRET,
-    google_client_id: !!process.env.GOOGLE_CLIENT_ID,
-    google_client_secret: !!process.env.GOOGLE_CLIENT_SECRET,
-    auth_url: process.env.AUTH_URL ?? null,
-    nextauth_url: process.env.NEXTAUTH_URL ?? null,
-    auth_trust_host: process.env.AUTH_TRUST_HOST ?? null,
+    supabase_url: !!(process.env.SUPABASE_URL),
+    service_role_key: !!(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    anon_key: !!(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY),
+    auth_secret: !!(process.env.AUTH_SECRET),
+    google_client_id: !!(process.env.GOOGLE_CLIENT_ID),
     db_connected: false,
-    db_user_count: null,
-    db_columns: null,
+    user_count: null,
     error: null,
   };
 
   try {
-    const { env } = getRequestContext();
-    const db = (env as Record<string, unknown>).DB as D1Database | undefined;
-    result.db_connected = !!db;
-
-    if (db) {
-      const countResult = await db.prepare("SELECT COUNT(*) as c FROM users").first<{ c: number }>();
-      result.db_user_count = countResult?.c ?? 0;
-
-      // Kolonları kontrol et
-      const cols = await db.prepare("PRAGMA table_info(users)").all<{ name: string }>();
-      result.db_columns = cols.results?.map(c => c.name) ?? [];
-    }
+    const supabase = createServerSupabase();
+    const { count, error } = await supabase.from("users").select("*", { count: "exact", head: true });
+    if (error) throw error;
+    result.db_connected = true;
+    result.user_count = count;
   } catch (e) {
     result.error = String(e);
   }
 
-  return NextResponse.json(result, {
-    headers: { "Cache-Control": "no-store" },
-  });
+  return NextResponse.json(result);
 }
