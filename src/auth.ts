@@ -37,25 +37,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
         try {
-          // Dynamic import to avoid build-time errors
-          const { getRequestContext } = await import("@cloudflare/next-on-pages");
-          const { env } = getRequestContext();
-          const db = (env as Record<string, unknown>).DB as
-            | { prepare: (q: string) => { bind: (...a: unknown[]) => { first: <T>() => Promise<T | null> } } }
-            | undefined;
-          if (!db) return null;
-
-          const user = await db
-            .prepare("SELECT id, email, full_name, avatar_url, password_hash, password_salt FROM users WHERE email = ?")
-            .bind(credentials.email)
-            .first<{ id: string; email: string; full_name: string | null; avatar_url: string | null; password_hash: string | null; password_salt: string | null }>();
-
-          if (!user?.password_hash || !user?.password_salt) return null;
-          const valid = await verifyPassword(credentials.password as string, user.password_hash, user.password_salt);
-          if (!valid) return null;
-          return { id: user.id, email: user.email, name: user.full_name, image: user.avatar_url };
+          // Use a dedicated API route to avoid getRequestContext issues inside NextAuth
+          const base = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL ?? "https://807827.pages.dev";
+          const res = await fetch(`${base}/api/verify-login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: credentials.email, password: credentials.password }),
+          });
+          if (!res.ok) return null;
+          return await res.json() as { id: string; email: string; name: string | null; image: string | null };
         } catch (e) {
-          console.error("[auth] credentials error:", e);
+          console.error("[authorize]", e);
           return null;
         }
       },
@@ -64,7 +56,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.sub = user.id;
+      if (user?.id) token.sub = user.id;
       return token;
     },
     async session({ session, token }) {

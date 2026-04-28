@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS users (
     contact_links TEXT,
     password_hash TEXT,
     password_salt TEXT,
+    user_type TEXT DEFAULT NULL,
+    onboarding_done BOOLEAN DEFAULT 0,
     tc_verified BOOLEAN DEFAULT 0,
     trust_badge BOOLEAN DEFAULT 0,
     total_jobs_completed INTEGER DEFAULT 0,
