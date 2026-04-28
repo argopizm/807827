@@ -26,14 +26,11 @@ export async function POST(request: Request) {
     db = (env as Record<string, unknown>).DB as D1Database;
     if (!db) throw new Error("DB binding not found");
   } catch (e) {
-    console.error("[register] getRequestContext failed:", e);
-    return NextResponse.json({
-      error: "Veritabanı bağlantısı kurulamadı. Lütfen daha sonra tekrar deneyin.",
-    }, { status: 503 });
+    return NextResponse.json({ error: "Veritabanı bağlantısı kurulamadı." }, { status: 503 });
   }
 
   try {
-    // E-posta var mı?
+    // Kolon adları D1'daki gerçek adlara uygun: name, image (NextAuth default)
     const existing = await db
       .prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?)")
       .bind(email.trim())
@@ -47,26 +44,19 @@ export async function POST(request: Request) {
     const usernameBase = email.split("@")[0].replace(/[^a-z0-9]/gi, "_").toLowerCase();
     const username = `${usernameBase}_${Math.floor(Math.random() * 9000 + 1000)}`;
 
+    // DB kolonları: id, name, email, image, username, password_hash, password_salt
     await db
       .prepare(
-        "INSERT INTO users (id, email, full_name, username, password_hash, password_salt) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO users (id, name, email, username, password_hash, password_salt) VALUES (?, ?, ?, ?, ?, ?)"
       )
-      .bind(id, email.toLowerCase().trim(), name.trim(), username, hash, salt)
+      .bind(id, name.trim(), email.toLowerCase().trim(), username, hash, salt)
       .run();
 
     return NextResponse.json({ success: true, message: "Kayıt başarılı! Giriş yapabilirsiniz." });
   } catch (e) {
-    console.error("[register] DB error:", e);
-    const msg = String(e);
-    // Kolon yoksa açıklayıcı hata ver
-    if (msg.includes("no such column") || msg.includes("table users has no column")) {
-      return NextResponse.json({
-        error: "Veritabanı şeması güncel değil. Lütfen yöneticiye bildirin.",
-        detail: msg,
-      }, { status: 500 });
-    }
+    console.error("[register] error:", e);
     return NextResponse.json({
-      error: "Kayıt sırasında hata oluştu: " + msg,
+      error: "Kayıt hatası: " + String(e),
     }, { status: 500 });
   }
 }

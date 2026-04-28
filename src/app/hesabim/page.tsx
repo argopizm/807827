@@ -3,9 +3,9 @@
 import { useSession, signOut } from "next-auth/react";
 import { useState, useEffect } from "react";
 import {
-  User, Mail, Link, ShieldCheck, LogOut, Save, Briefcase,
+  User, Mail, ShieldCheck, LogOut, Save, Briefcase,
   Fingerprint, Calendar, Loader2, Edit3, CheckCircle2,
-  Code2, FileText, Star, Plus, Settings, ChevronRight
+  Code2, FileText, Star, Plus, Settings, ChevronRight, Link2
 } from "lucide-react";
 
 type UserType = "freelancer" | "employer" | null;

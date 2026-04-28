@@ -14,59 +14,57 @@ export async function POST(request: Request) {
 
   const { email, password } = body;
   if (!email || !password) {
-    return NextResponse.json({ error: "Missing email or password" }, { status: 400 });
+    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
   try {
     const { env } = getRequestContext();
     const db = (env as Record<string, unknown>).DB as D1Database | undefined;
-
     if (!db) {
-      console.error("[verify-login] DB binding not found");
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    // DB kolon adları NextAuth default schema'ya uygun: name, image
     const user = await db
       .prepare(`
-        SELECT id, email, full_name, avatar_url, password_hash, password_salt
+        SELECT id, email, name, image, password_hash, password_salt
         FROM users
-        WHERE email = ?
+        WHERE LOWER(email) = LOWER(?)
         LIMIT 1
       `)
-      .bind(email.toLowerCase().trim())
+      .bind(email.trim())
       .first<{
         id: string;
         email: string;
-        full_name: string | null;
-        avatar_url: string | null;
+        name: string | null;
+        image: string | null;
         password_hash: string | null;
         password_salt: string | null;
       }>();
 
     if (!user) {
-      console.log("[verify-login] User not found:", email);
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
     }
 
     if (!user.password_hash || !user.password_salt) {
-      console.log("[verify-login] User has no password (Google-only account):", email);
-      return NextResponse.json({ error: "No password set. Please use Google login." }, { status: 401 });
+      return NextResponse.json({
+        error: "Bu hesap Google ile oluşturuldu. Google ile giriş yapın.",
+      }, { status: 401 });
     }
 
     const valid = await verifyPassword(password, user.password_hash, user.password_salt);
     if (!valid) {
-      console.log("[verify-login] Invalid password for:", email);
-      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json({ error: "Wrong password" }, { status: 401 });
     }
 
     return NextResponse.json({
       id: user.id,
       email: user.email,
-      name: user.full_name,
-      image: user.avatar_url,
+      name: user.name,
+      image: user.image,
     });
   } catch (e) {
-    console.error("[verify-login] DB error:", e);
-    return NextResponse.json({ error: "Server error", detail: String(e) }, { status: 500 });
+    console.error("[verify-login]", e);
+    return NextResponse.json({ error: "Server error: " + String(e) }, { status: 500 });
   }
 }

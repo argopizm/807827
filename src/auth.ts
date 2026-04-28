@@ -59,14 +59,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           const user = await db
             .prepare(
-              "SELECT id, email, full_name, avatar_url, password_hash, password_salt FROM users WHERE LOWER(email) = ?"
+              "SELECT id, email, name, image, password_hash, password_salt FROM users WHERE LOWER(email) = ?"
             )
             .bind(email)
             .first<{
               id: string;
               email: string;
-              full_name: string | null;
-              avatar_url: string | null;
+              name: string | null;
+              image: string | null;
               password_hash: string | null;
               password_salt: string | null;
             }>();
@@ -90,8 +90,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return {
             id: user.id,
             email: user.email,
-            name: user.full_name,
-            image: user.avatar_url,
+            name: user.name,
+            image: user.image,
           };
         } catch (e) {
           console.error("[authorize] Exception:", e);
@@ -102,6 +102,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
+    async signIn({ user, account }) {
+      // Google ile giriş yapıldığında kullanıcıyı D1'a kaydet/güncelle
+      if (account?.provider === "google" && user.id && user.email) {
+        try {
+          const { getRequestContext } = await import("@cloudflare/next-on-pages");
+          const { env } = getRequestContext();
+          const db = (env as Record<string, unknown>).DB as D1Database | undefined;
+          if (db) {
+            await db.prepare(
+              `INSERT INTO users (id, email, name, image) VALUES (?, ?, ?, ?)
+               ON CONFLICT(email) DO UPDATE SET name = excluded.name, image = excluded.image`
+            )
+            .bind(user.id, user.email, user.name ?? "", user.image ?? "")
+            .run();
+          }
+        } catch (e) {
+          console.error("[signIn callback]", e);
+          // DB hatası olsa bile girişe izin ver
+        }
+      }
+      return true;
+    },
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
       return token;
