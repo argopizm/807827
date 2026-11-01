@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSession } from "next-auth/react";
 import {
-  Calendar, DollarSign, User, CheckCircle2,
+  Calendar, Wallet, User, CheckCircle2,
   Handshake, MessageSquare, ArrowLeft, LogIn, Loader2
 } from "lucide-react";
 
@@ -12,6 +12,9 @@ interface Job {
   title: string;
   client: string;
   client_id: string;
+  client_username: string;
+  client_jobs: number;
+  client_rating: number;
   budget: string;
   category: string;
   created_at: string;
@@ -19,7 +22,7 @@ interface Job {
   description: string;
 }
 
-export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
+export default function JobDetailClient({ job }: { id: string; job: Job }) {
   const { data: session, status } = useSession();
   const [hasApplied, setHasApplied] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -87,7 +90,7 @@ export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
             <h1 className="job-title">{job.title}</h1>
             <div className="job-stats">
               <div className="stat">
-                <DollarSign size={20} className="icon" />
+                <Wallet size={20} className="icon" />
                 <div>
                   <span>Bütçe</span>
                   <strong>{job.budget}</strong>
@@ -106,7 +109,7 @@ export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
           <section className="glass-card description-card">
             <h2>İş Detayları</h2>
             <div className="description-text">
-              {job.description.split('\n').map((line, i) => (
+              {job.description.split("\n").map((line, i) => (
                 <p key={i}>{line}</p>
               ))}
             </div>
@@ -117,7 +120,6 @@ export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
           <div className="glass-card action-card">
             <h3>Bu İşle İlgileniyor musunuz?</h3>
 
-            {/* Giriş yapılmamış */}
             {status === "unauthenticated" && (
               <>
                 <p>
@@ -129,7 +131,6 @@ export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
               </>
             )}
 
-            {/* Kendi ilanı */}
             {status === "authenticated" && isOwnJob && (
               <div className="own-job-notice">
                 <CheckCircle2 size={20} color="var(--primary)" />
@@ -137,7 +138,6 @@ export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
               </div>
             )}
 
-            {/* Giriş yapılmış, başkasının ilanı */}
             {status === "authenticated" && !isOwnJob && (
               <>
                 <p>
@@ -166,7 +166,6 @@ export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
               </>
             )}
 
-            {/* Yükleniyor */}
             {status === "loading" && (
               <div className="loading-state" style={{ textAlign: "center", padding: "20px" }}>
                 <Loader2 className="spin" size={24} />
@@ -182,18 +181,18 @@ export default function JobDetailClient({ id, job }: { id: string; job: Job }) {
           </div>
 
           <div className="glass-card client-info-card">
-            <h3>Müşteri Hakkında</h3>
+            <h3>İşveren Hakkında</h3>
             <div className="client-stats">
               <div className="c-stat">
-                <strong>{Math.floor(Math.random() * 20) + 1}</strong>
+                <strong>{job.client_jobs}</strong>
                 <span>Tamamlanan İş</span>
               </div>
               <div className="c-stat">
-                <strong>4.{Math.floor(Math.random() * 10)}</strong>
+                <strong>{job.client_rating > 0 ? job.client_rating.toFixed(1).replace(".", ",") : "–"}</strong>
                 <span>Puan</span>
               </div>
             </div>
-            <a href={`/profil/${job.client_id}`} className="view-profile">Profili Görüntüle</a>
+            <a href={`/profil/${job.client_username}`} className="view-profile">Profili Görüntüle</a>
           </div>
         </aside>
       </div>

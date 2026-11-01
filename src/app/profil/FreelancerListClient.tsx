@@ -1,140 +1,123 @@
 "use client";
 
-import { useState } from "react";
-import { Search, Filter, Star, Briefcase, ShieldCheck, Award, MapPin, ArrowRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search, Star, ShieldCheck, Award } from "lucide-react";
 
 interface Freelancer {
   id: string; username: string; full_name: string; email: string;
   avatar_url: string; bio: string; tc_verified: number; trust_badge: number;
   total_jobs_completed: number; rating_avg: number; skills: string[]; category: string;
+  title?: string;
 }
 
 const CATEGORIES = ["Tümü", "Yazılım", "Tasarım", "Pazarlama", "Çeviri", "Video", "Seslendirme"];
+
+function initials(name: string) {
+  return name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toLocaleUpperCase("tr");
+}
 
 export default function FreelancerListClient({ freelancers }: { freelancers: Freelancer[] }) {
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("Tümü");
   const [onlyVerified, setOnlyVerified] = useState(false);
+  const [onlyTrusted, setOnlyTrusted] = useState(false);
   const [sort, setSort] = useState<"rating" | "jobs">("rating");
 
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { Tümü: freelancers.length };
+    freelancers.forEach((f) => { c[f.category] = (c[f.category] ?? 0) + 1; });
+    return c;
+  }, [freelancers]);
+
   const filtered = freelancers
-    .filter(f => {
-      const q = search.toLowerCase();
-      const matchSearch = !q || f.full_name.toLowerCase().includes(q) || f.bio.toLowerCase().includes(q) || f.skills.some(s => s.toLowerCase().includes(q));
+    .filter((f) => {
+      const q = search.toLocaleLowerCase("tr");
+      const matchSearch = !q || `${f.full_name} ${f.bio} ${f.title ?? ""} ${f.skills.join(" ")}`.toLocaleLowerCase("tr").includes(q);
       const matchCat = activeCat === "Tümü" || f.category === activeCat;
-      const matchVerified = !onlyVerified || f.tc_verified;
-      return matchSearch && matchCat && matchVerified;
+      return matchSearch && matchCat && (!onlyVerified || f.tc_verified) && (!onlyTrusted || f.trust_badge);
     })
-    .sort((a, b) => sort === "rating" ? b.rating_avg - a.rating_avg : b.total_jobs_completed - a.total_jobs_completed);
+    .sort((a, b) => (sort === "rating" ? b.rating_avg - a.rating_avg : b.total_jobs_completed - a.total_jobs_completed));
 
   return (
-    <div className="fl-page">
-      {/* Hero */}
-      <div className="fl-hero">
-        <div className="fl-hero-orb" />
+    <>
+      <header className="lp-head">
         <div className="container">
-          <h1 className="fl-hero-title">Freelancer <span className="gradient-text">Bul</span></h1>
-          <p className="fl-hero-sub">TC kimlik doğrulamalı, güvenilir Türk freelancer'larla çalışın</p>
-          <div className="fl-search-bar glass-card">
-            <Search size={20} className="fl-search-icon" />
-            <input
-              className="fl-search-input"
-              placeholder="İsim, yetenek veya uzmanlık ara..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+          <div className="lp-crumbs"><a href="/">Ana sayfa</a> / Freelancer Bul</div>
+          <div className="lp-head-row">
+            <div>
+              <h1>Freelancer Bul</h1>
+              <p>Projeniz için doğru uzmanı seçin, doğrudan iletişime geçin.</p>
+            </div>
+          </div>
+          <div className="lp-search">
+            <Search size={18} />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="İsim, uzmanlık veya yetenek ara (örn. React, logo, çeviri)" aria-label="Freelancer ara" />
           </div>
         </div>
-      </div>
+      </header>
 
-      <div className="container fl-content">
-        {/* Filters Row */}
-        <div className="fl-filters">
-          <div className="fl-cats">
-            {CATEGORIES.map(cat => (
-              <button key={cat} className={`fl-cat-btn ${activeCat === cat ? "active" : ""}`} onClick={() => setActiveCat(cat)}>
-                {cat}
+      <div className="container lp-body">
+        <aside className="lp-side" aria-label="Filtreler">
+          <div className="lp-side-group">
+            <h3>Uzmanlık</h3>
+            {CATEGORIES.map((c) => (
+              <button key={c} className={`lp-opt ${activeCat === c ? "active" : ""}`} onClick={() => setActiveCat(c)}>
+                {c} <small>{counts[c] ?? 0}</small>
               </button>
             ))}
           </div>
-          <div className="fl-controls">
-            <label className="fl-toggle">
-              <input type="checkbox" checked={onlyVerified} onChange={e => setOnlyVerified(e.target.checked)} />
-              <span className="fl-toggle-track" />
-              <span className="fl-toggle-label"><ShieldCheck size={14} /> Doğrulanmış</span>
-            </label>
-            <select className="fl-sort" value={sort} onChange={e => setSort(e.target.value as "rating" | "jobs")}>
-              <option value="rating">En Yüksek Puan</option>
-              <option value="jobs">En Fazla İş</option>
+          <div className="lp-side-group">
+            <h3>Güven</h3>
+            <label className="lp-check"><input type="checkbox" checked={onlyVerified} onChange={(e) => setOnlyVerified(e.target.checked)} /> Kimliği doğrulanmış</label>
+            <label className="lp-check"><input type="checkbox" checked={onlyTrusted} onChange={(e) => setOnlyTrusted(e.target.checked)} /> Güven rozetli</label>
+          </div>
+        </aside>
+
+        <section>
+          <div className="lp-toolbar">
+            <span><strong>{filtered.length}</strong> freelancer</span>
+            <select className="lp-select" value={sort} onChange={(e) => setSort(e.target.value as "rating" | "jobs")} aria-label="Sırala">
+              <option value="rating">En yüksek puan</option>
+              <option value="jobs">En çok tamamlanan iş</option>
             </select>
           </div>
-        </div>
 
-        {/* Results count */}
-        <p className="fl-count">
-          <strong>{filtered.length}</strong> freelancer bulundu
-        </p>
-
-        {/* Grid */}
-        {filtered.length === 0 ? (
-          <div className="fl-empty glass-card">
-            <Search size={40} style={{ color: "var(--text-muted)" }} />
-            <p>Aramanızla eşleşen freelancer bulunamadı.</p>
-          </div>
-        ) : (
-          <div className="fl-grid">
-            {filtered.map(f => (
-              <article key={f.id} className="fl-card glass-card">
-                {/* Card Header */}
-                <div className="fl-card-top">
-                  <div className="fl-avatar-wrap">
-                    <img src={f.avatar_url} alt={f.full_name} className="fl-avatar" />
-                    {f.tc_verified ? <span className="fl-verified-dot" title="TC Doğrulanmış" /> : null}
-                  </div>
-                  <div className="fl-card-info">
-                    <h2 className="fl-name">{f.full_name}</h2>
-                    <p className="fl-category">{f.category}</p>
-                    <div className="fl-badges">
-                      {f.tc_verified ? <span className="fl-badge verified">✅ Kimlik Onaylı</span> : null}
-                      {f.trust_badge ? <span className="fl-badge trust">⭐ Güven Rozeti</span> : null}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bio */}
-                <p className="fl-bio">{f.bio || "Henüz biyografi eklenmemiş."}</p>
-
-                {/* Skills */}
-                {f.skills.length > 0 && (
-                  <div className="fl-skills">
-                    {f.skills.map(s => <span key={s} className="fl-skill">{s}</span>)}
-                  </div>
-                )}
-
-                {/* Stats */}
-                <div className="fl-stats">
-                  <div className="fl-stat">
-                    <Star size={14} fill="var(--warning)" stroke="none" />
-                    <strong>{f.rating_avg > 0 ? f.rating_avg.toFixed(1) : "–"}</strong>
-                    <span>Puan</span>
-                  </div>
-                  <div className="fl-stat-divider" />
-                  <div className="fl-stat">
-                    <Briefcase size={14} />
-                    <strong>{f.total_jobs_completed}</strong>
-                    <span>İş</span>
-                  </div>
-                </div>
-
-                {/* Action */}
-                <a href={`/profil/${f.username}`} className="fl-cta-btn btn-primary">
-                  Profili Gör <ArrowRight size={16} />
+          {filtered.length === 0 ? (
+            <div className="lp-empty">
+              <strong>Sonuç bulunamadı</strong>
+              Aramanızı genişletmeyi veya filtreleri kaldırmayı deneyin.
+            </div>
+          ) : (
+            filtered.map((f) => (
+              <article key={f.id} className="fr-row">
+                <a href={`/profil/${f.username}`} className="ava lg" aria-hidden="true">
+                  {f.avatar_url ? <img src={f.avatar_url} alt="" /> : initials(f.full_name)}
                 </a>
+                <div>
+                  <div className="fr-name">
+                    <a href={`/profil/${f.username}`}><h2>{f.full_name}</h2></a>
+                    {f.tc_verified ? <span className="fr-verified"><ShieldCheck size={14} /> Kimlik onaylı</span> : null}
+                    {f.trust_badge ? <span className="fr-verified" style={{ color: "var(--primary)" }}><Award size={14} /> Güven rozeti</span> : null}
+                  </div>
+                  <div className="fr-title">{f.title ?? f.category}</div>
+                  <p className="fr-bio">{f.bio || "Henüz biyografi eklenmemiş."}</p>
+                  {f.skills.length > 0 && (
+                    <div className="tags">{f.skills.map((s) => <span key={s} className="tag">{s}</span>)}</div>
+                  )}
+                </div>
+                <div className="fr-side">
+                  <span className="fr-rating">
+                    <Star size={15} fill="currentColor" stroke="none" />
+                    {f.rating_avg > 0 ? f.rating_avg.toFixed(1).replace(".", ",") : "Yeni"}
+                  </span>
+                  <small>{f.total_jobs_completed} tamamlanan iş</small>
+                  <a href={`/profil/${f.username}`} className="btn-secondary">Profili incele</a>
+                </div>
               </article>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </section>
       </div>
-    </div>
+    </>
   );
 }

@@ -1,18 +1,41 @@
 "use client";
 
 import { useState } from "react";
-import { Star, MessageSquare, Send, CheckCircle2 } from "lucide-react";
+import { Star, MessageSquare, Send, CheckCircle2, Loader2 } from "lucide-react";
 
 export default function ReviewClient({ handshakeId }: { handshakeId: string }) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (rating === 0) return alert("Lütfen bir puan seçin!");
-    setSubmitted(true);
+    if (rating === 0) {
+      setError("Lütfen bir memnuniyet puanı seçin.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handshakeId, rating, comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Değerlendirme gönderilemedi.");
+      } else {
+        setSubmitted(true);
+      }
+    } catch {
+      setError("Bağlantı hatası.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -21,16 +44,18 @@ export default function ReviewClient({ handshakeId }: { handshakeId: string }) {
         {submitted ? (
           <div className="success-state">
             <CheckCircle2 size={64} color="var(--success)" />
-            <h1>Değerlendirmeniz Alındı!</h1>
+            <h1>Değerlendirmeniz Kaydedildi</h1>
             <p>Geri bildiriminiz platform güvenliği için çok değerlidir. Teşekkürler!</p>
-            <button className="btn-primary" onClick={() => window.location.href = "/"}>Ana Sayfaya Dön</button>
+            <a href="/" className="btn-primary">Ana Sayfaya Dön</a>
           </div>
         ) : (
           <>
             <div className="review-header">
-              <h1 className="gradient-text">İşi Değerlendirin</h1>
-              <p>El sıkıştığınız bu iş tamamlandı mı? Deneyiminizi paylaşın. ({handshakeId})</p>
+              <h1>İşi Değerlendirin</h1>
+              <p>Tamamlanan bu iş için deneyiminizi paylaşın.</p>
             </div>
+
+            {error && <p className="auth-msg error" style={{ marginBottom: 16 }}>{error}</p>}
 
             <form onSubmit={handleSubmit} className="review-form">
               <div className="rating-selector">
@@ -54,22 +79,22 @@ export default function ReviewClient({ handshakeId }: { handshakeId: string }) {
                   {rating === 2 && "Kötü"}
                   {rating === 3 && "Orta"}
                   {rating === 4 && "İyi"}
-                  {rating === 5 && "Harika!"}
+                  {rating === 5 && "Mükemmel"}
                 </span>
               </div>
 
               <div className="input-group">
-                <label><MessageSquare size={16} /> Yorumunuz (Opsiyonel)</label>
+                <label><MessageSquare size={16} /> Yorumunuz</label>
                 <textarea
-                  placeholder="Freelancer/Müşteri ile iletişiminiz nasıldı? İş kalitesinden memnun kaldınız mı?"
+                  placeholder="İletişim ve iş kalitesi nasıldı?"
                   rows={5}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                ></textarea>
+                />
               </div>
 
-              <button type="submit" className="btn-primary submit-btn">
-                <Send size={18} /> Değerlendirmeyi Gönder
+              <button type="submit" className="btn-primary submit-btn" disabled={loading}>
+                {loading ? <><Loader2 className="spin" size={18} /> Gönderiliyor...</> : <><Send size={18} /> Değerlendirmeyi Gönder</>}
               </button>
             </form>
           </>

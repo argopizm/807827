@@ -1,6 +1,6 @@
-export const runtime = 'edge';
+export const runtime = "edge";
 
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getDB, formatRelativeDate } from "@/lib/db";
 import { notFound } from "next/navigation";
 import JobDetailClient from "./JobDetailClient";
 
@@ -14,47 +14,28 @@ interface DBJob {
   created_at: string;
   client_id: string;
   client_name: string | null;
-  client_email: string | null;
+  client_username: string | null;
+  client_jobs: number | null;
+  client_rating: number | null;
 }
-
-// Mock data fallback (local development)
-const MOCK_JOB: DBJob = {
-  id: "demo-1",
-  title: "Next.js ile E-Ticaret Arayüzü (Demo)",
-  description: `Mevcut Figma tasarımımızı Next.js ve Tailwind kullanarak koda dökecek bir freelancer arıyoruz.
-
-Beklentilerimiz:
-- Pixel-perfect kodlama
-- SEO uyumlu yapı (Semantic HTML)
-- Hızlı yükleme süreleri (Lighthouse 90+)
-- Responsive tasarım
-
-Teslim süresi 15 gündür. Detaylar için el sıkıştıktan sonra WhatsApp üzerinden görüşülecektir.`,
-  category: "Yazılım",
-  budget_range: "15.000 - 20.000 TL",
-  status: "open",
-  created_at: new Date().toLocaleDateString("tr-TR"),
-  client_id: "demo-client-1",
-  client_name: "Dijital Akademi",
-  client_email: null,
-};
 
 async function getJob(id: string): Promise<DBJob | null> {
   try {
-    const { env } = getRequestContext();
-    const db = env.DB;
+    const db = await getDB();
     if (!db) return null;
 
     const result = await db
-      .prepare(`
-        SELECT 
-          j.id, j.title, j.description, j.category, j.budget_range,
-          j.status, j.created_at, j.client_id,
-          u.full_name AS client_name, u.email AS client_email
-        FROM jobs j
-        LEFT JOIN users u ON j.client_id = u.id
-        WHERE j.id = ?
-      `)
+      .prepare(
+        `SELECT j.id, j.title, j.description, j.category, j.budget_range,
+                j.status, j.created_at, j.client_id,
+                COALESCE(u.full_name, u.name, u.username) AS client_name,
+                u.username AS client_username,
+                u.total_jobs_completed AS client_jobs,
+                u.rating_avg AS client_rating
+         FROM jobs j
+         LEFT JOIN users u ON j.client_id = u.id
+         WHERE j.id = ?`
+      )
       .bind(id)
       .first<DBJob>();
 
@@ -64,32 +45,22 @@ async function getJob(id: string): Promise<DBJob | null> {
   }
 }
 
-export default async function JobDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-
-  let job = await getJob(id);
-
-  // Demo/fallback için mock data
-  if (!job) {
-    if (id === "demo-1" || id === "1") {
-      job = MOCK_JOB;
-    } else {
-      notFound();
-    }
-  }
+  const job = await getJob(id);
+  if (!job) notFound();
 
   const jobData = {
     id: job.id,
     title: job.title,
-    client: job.client_name ?? job.client_email ?? "Anonim",
+    client: job.client_name ?? "İşveren",
     client_id: job.client_id,
+    client_username: job.client_username ?? job.client_id,
+    client_jobs: Number(job.client_jobs ?? 0),
+    client_rating: Number(job.client_rating ?? 0),
     budget: job.budget_range ?? "Belirtilmemiş",
     category: job.category ?? "Genel",
-    created_at: new Date(job.created_at).toLocaleDateString("tr-TR"),
+    created_at: formatRelativeDate(job.created_at),
     status: job.status ?? "open",
     description: job.description ?? "",
   };

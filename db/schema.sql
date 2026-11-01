@@ -4,16 +4,21 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     username TEXT UNIQUE,
     full_name TEXT,
+    name TEXT,
+    title TEXT,
+    category TEXT DEFAULT 'Genel',
+    skills TEXT DEFAULT '[]',
     bio TEXT,
     avatar_url TEXT,
+    image TEXT,
     portfolio_url TEXT,
-    contact_links TEXT,
+    contact_links TEXT DEFAULT '{}',
     password_hash TEXT,
     password_salt TEXT,
     user_type TEXT DEFAULT NULL,
-    onboarding_done BOOLEAN DEFAULT 0,
-    tc_verified BOOLEAN DEFAULT 0,
-    trust_badge BOOLEAN DEFAULT 0,
+    onboarding_done INTEGER DEFAULT 0,
+    tc_verified INTEGER DEFAULT 0,
+    trust_badge INTEGER DEFAULT 0,
     total_jobs_completed INTEGER DEFAULT 0,
     rating_avg REAL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -25,8 +30,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     client_id TEXT NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
-    category TEXT,
+    category TEXT DEFAULT 'Genel',
     budget_range TEXT,
+    skills TEXT DEFAULT '[]',
     status TEXT DEFAULT 'open',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (client_id) REFERENCES users(id)
@@ -65,14 +71,8 @@ CREATE TABLE IF NOT EXISTS messages (
     sender_id TEXT NOT NULL,
     receiver_id TEXT NOT NULL,
     content TEXT NOT NULL,
-    is_read BOOLEAN DEFAULT 0,
+    is_read INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (sender_id) REFERENCES users(id),
     FOREIGN KEY (receiver_id) REFERENCES users(id)
 );
-
--- Migration: add columns if not exists (run these manually on existing D1)
--- ALTER TABLE users ADD COLUMN username TEXT;
--- ALTER TABLE users ADD COLUMN password_hash TEXT;
--- ALTER TABLE users ADD COLUMN password_salt TEXT;
--- CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);

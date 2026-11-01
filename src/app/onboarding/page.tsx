@@ -46,7 +46,7 @@ export default function OnboardingPage() {
       <div className="onb-card glass-card">
         <div className="onb-logo"><span className="gradient-text">Freelancer</span> Türkiye</div>
         <div className="onb-welcome">
-          <h1>Hoş Geldiniz, <span className="gradient-text">{session?.user?.name?.split(" ")[0]}</span>! 👋</h1>
+          <h1>Hoş Geldiniz, <span className="gradient-text">{session?.user?.name?.split(" ")[0]}</span></h1>
           <p>Platforma nasıl katılmak istiyorsunuz? Panelinizi sizin için özelleştirelim.</p>
         </div>
 

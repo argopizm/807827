@@ -1,98 +1,50 @@
 export const runtime = "edge";
 
-import { Search, Clock, Filter } from "lucide-react";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getDB, formatRelativeDate } from "@/lib/db";
+import JobListClient, { type Job } from "./JobListClient";
 
-export default async function JobBoardPage() {
-  let dbJobs: any[] = [];
-  
+export default async function JobBoardPage({ searchParams }: { searchParams: Promise<{ q?: string; kategori?: string }> }) {
+  const sp = await searchParams;
+  let dbJobs: Job[] = [];
+
   try {
-    const { env } = getRequestContext();
-    const db = env.DB;
+    const db = await getDB();
     if (db) {
-      const { results } = await db.prepare("SELECT * FROM jobs ORDER BY created_at DESC").all();
-      dbJobs = results || [];
+      const { results } = await db
+        .prepare(
+          `SELECT j.id, j.title, j.description, j.category, j.budget_range, j.skills, j.created_at,
+                  COALESCE(u.full_name, u.name, u.username, 'İşveren') AS client_name,
+                  (SELECT COUNT(*) FROM handshakes h WHERE h.job_id = j.id) AS proposals
+           FROM jobs j
+           LEFT JOIN users u ON j.client_id = u.id
+           WHERE j.status = 'open'
+           ORDER BY j.created_at DESC`
+        )
+        .all<Record<string, unknown>>();
+
+      dbJobs = (results ?? []).map((j) => {
+        let skills: string[] = [];
+        try {
+          skills = JSON.parse(String(j.skills ?? "[]"));
+        } catch {
+          skills = [];
+        }
+        return {
+          id: String(j.id),
+          title: String(j.title ?? ""),
+          client: String(j.client_name ?? "İşveren"),
+          budget: String(j.budget_range ?? "Belirtilmemiş"),
+          category: String(j.category ?? "Genel"),
+          description: String(j.description ?? ""),
+          time: formatRelativeDate(j.created_at as string | null),
+          proposals: Number(j.proposals ?? 0),
+          skills: Array.isArray(skills) ? skills : [],
+        };
+      });
     }
   } catch (e) {
-    console.error("D1 connection failed, using mock data", e);
+    console.error("[ilanlar]", e);
   }
 
-  // Mock data for fallback
-  const mockJobs = [
-    {
-      id: "1",
-      title: "Next.js ile E-Ticaret Arayüzü (Demo)",
-      client: "Dijital Akademi",
-      budget: "15.000 - 20.000 TL",
-      category: "Yazılım",
-      time: "2 saat önce",
-      description: "Mevcut Figma tasarımımızı Next.js ve Tailwind kullanarak koda dökecek bir freelancer arıyoruz...",
-    }
-  ];
-
-  const jobs = dbJobs.length > 0 ? dbJobs.map(j => ({
-    ...j,
-    time: "Yeni İlan", // Simplified for DB results
-  })) : mockJobs;
-
-  return (
-    <div className="job-board container">
-      {/* Search & Filter Bar */}
-      <div className="search-bar glass-card">
-        <div className="search-input">
-          <Search size={20} className="icon" />
-          <input type="text" placeholder="İş ara... (Örn: Web Tasarım)" />
-        </div>
-        <button className="filter-btn">
-          <Filter size={18} /> Filtrele
-        </button>
-        <button className="btn-primary">Ara</button>
-      </div>
-
-      <div className="board-layout">
-        <aside className="filters-sidebar">
-          <h3>Kategoriler</h3>
-          <div className="filter-list">
-            {["Tümü", "Yazılım", "Tasarım", "Pazarlama", "Çeviri", "Video"].map((cat) => (
-              <label key={cat} className="filter-item">
-                <input type="checkbox" defaultChecked={cat === "Tümü"} />
-                <span>{cat}</span>
-              </label>
-            ))}
-          </div>
-        </aside>
-
-        <main className="job-list">
-          <div className="list-header">
-            <h2>Aktif İlanlar ({jobs.length})</h2>
-            <select>
-              <option>En Yeni</option>
-              <option>Bütçe: Önce Yüksek</option>
-            </select>
-          </div>
-
-          {jobs.map((job) => (
-            <div key={job.id} className="glass-card job-card">
-              <div className="job-card-header">
-                <div>
-                  <span className="category-badge">{job.category}</span>
-                  <h3 className="job-title">{job.title}</h3>
-                  <div className="job-meta">
-                    <span><Search size={14} /> {job.client || 'Anonim'}</span>
-                    <span><Clock size={14} /> {job.time || 'Yeni'}</span>
-                  </div>
-                </div>
-                <div className="job-budget">{job.budget}</div>
-              </div>
-              <p className="job-desc">{job.description}</p>
-              <div className="job-card-footer">
-                <a href={`/isler/${job.id}`} className="btn-secondary" style={{ textDecoration: 'none' }}>Detayları Gör</a>
-                <a href={`/isler/${job.id}`} className="btn-primary" style={{ textDecoration: 'none' }}>Teklif Ver</a>
-              </div>
-            </div>
-          ))}
-        </main>
-      </div>
-    </div>
-  );
+  return <JobListClient jobs={dbJobs} initialQuery={sp.q ?? ""} initialCategory={sp.kategori ?? "Tümü"} />;
 }
