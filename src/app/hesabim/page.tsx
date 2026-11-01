@@ -79,6 +79,9 @@ export default function HesabimPage() {
   const [discord, setDiscord] = useState("");
   const [portfolio, setPortfolio] = useState("");
   const [tcNo, setTcNo] = useState("");
+  const [verifyFirstName, setVerifyFirstName] = useState("");
+  const [verifyLastName, setVerifyLastName] = useState("");
+  const [verifyBirthYear, setVerifyBirthYear] = useState("");
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -161,7 +164,13 @@ export default function HesabimPage() {
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "verify_tc", tcNo }),
+        body: JSON.stringify({
+          action: "verify_tc",
+          tcNo,
+          firstName: verifyFirstName,
+          lastName: verifyLastName,
+          birthYear: Number(verifyBirthYear),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -406,16 +415,49 @@ export default function HesabimPage() {
                     {verifyError && <p className="auth-msg error" style={{ marginBottom: 16 }}>{verifyError}</p>}
                     <form onSubmit={handleVerify} className="settings-form">
                       <div className="form-row">
-                        <div className="input-group"><label>Ad (Büyük Harf)</label><input type="text" defaultValue={fullName.split(" ")[0]?.toLocaleUpperCase("tr")} required /></div>
-                        <div className="input-group"><label>Soyad (Büyük Harf)</label><input type="text" defaultValue={fullName.split(" ").slice(1).join(" ")?.toLocaleUpperCase("tr")} required /></div>
+                        <div className="input-group">
+                          <label>Ad (Kimlikte yazıldığı gibi)</label>
+                          <input
+                            type="text"
+                            value={verifyFirstName}
+                            onChange={(e) => setVerifyFirstName(e.target.value)}
+                            placeholder="ALİ"
+                            required
+                          />
+                        </div>
+                        <div className="input-group">
+                          <label>Soyad (Kimlikte yazıldığı gibi)</label>
+                          <input
+                            type="text"
+                            value={verifyLastName}
+                            onChange={(e) => setVerifyLastName(e.target.value)}
+                            placeholder="YILMAZ"
+                            required
+                          />
+                        </div>
                       </div>
                       <div className="input-group">
                         <label><Fingerprint size={14} /> TC Kimlik No</label>
-                        <input type="text" maxLength={11} value={tcNo} onChange={(e) => setTcNo(e.target.value)} placeholder="11 haneli TC Kimlik No" required />
+                        <input
+                          type="text"
+                          maxLength={11}
+                          value={tcNo}
+                          onChange={(e) => setTcNo(e.target.value)}
+                          placeholder="11 haneli TC Kimlik No"
+                          required
+                        />
                       </div>
                       <div className="input-group">
                         <label><Calendar size={14} /> Doğum Yılı</label>
-                        <input type="number" min={1930} max={2010} placeholder="1995" required />
+                        <input
+                          type="number"
+                          min={1920}
+                          max={new Date().getFullYear() - 15}
+                          value={verifyBirthYear}
+                          onChange={(e) => setVerifyBirthYear(e.target.value)}
+                          placeholder="1995"
+                          required
+                        />
                       </div>
                       <button type="submit" className="btn-primary save-btn" disabled={verifyLoading}>
                         {verifyLoading ? <><Loader2 className="spin" size={18} /> Doğrulanıyor...</> : <><ShieldCheck size={18} /> Kimliği Doğrula</>}

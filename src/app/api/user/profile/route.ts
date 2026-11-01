@@ -2,6 +2,7 @@ export const runtime = "edge";
 
 import { auth } from "@/auth";
 import { getDB } from "@/lib/db";
+import { verifyTCNo } from "@/lib/verify-tc";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -78,9 +79,15 @@ export async function PUT(request: Request) {
     // TC Doğrulama isteği
     if (body.action === "verify_tc") {
       const tcNo = String(body.tcNo ?? "").trim();
-      if (!/^\d{11}$/.test(tcNo) || tcNo.startsWith("0")) {
-        return NextResponse.json({ error: "Geçerli 11 haneli TC Kimlik numarası girin." }, { status: 400 });
+      const firstName = String(body.firstName ?? "").trim();
+      const lastName = String(body.lastName ?? "").trim();
+      const birthYear = Number(body.birthYear);
+
+      const verification = await verifyTCNo({ tcNo, firstName, lastName, birthYear });
+      if (!verification.success) {
+        return NextResponse.json({ error: verification.error ?? "Kimlik doğrulanamadı." }, { status: 400 });
       }
+
       await db
         .prepare("UPDATE users SET tc_verified = 1 WHERE id = ?")
         .bind(userId)

@@ -7,6 +7,8 @@ import {
   Handshake, Lock, Minus, Plus
 } from "lucide-react";
 import { getDB } from "@/lib/db";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Freelancer Türkiye | %0 Komisyonlu Freelancer Platformu",
@@ -178,6 +180,11 @@ async function getHomeData(): Promise<LiveStats> {
 }
 
 export default async function Home() {
+  const session = await auth();
+  if (session?.user) {
+    redirect("/hesabim");
+  }
+
   const stats = await getHomeData();
 
   return (
