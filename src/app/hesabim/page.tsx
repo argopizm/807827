@@ -267,7 +267,7 @@ export default function HesabimPage() {
             <a href="/ilanlar" className="sidebar-tab"><FileText size={16} /> İş İlanlarına Bak</a>
           </aside>
 
-          <main className="hesabim-content glass-card">
+          <div className="hesabim-content glass-card">
             {flTab === "dashboard" && (
               <div className="tab-content">
                 <div className="tab-header"><Code2 size={20} /><h2>Freelancer Özet</h2></div>
@@ -467,7 +467,7 @@ export default function HesabimPage() {
                 )}
               </div>
             )}
-          </main>
+          </div>
         </div>
       </div>
     );
@@ -505,7 +505,7 @@ export default function HesabimPage() {
           <a href="/profil" className="sidebar-tab"><User size={16} /> Freelancer Bul</a>
         </aside>
 
-        <main className="hesabim-content glass-card">
+        <div className="hesabim-content glass-card">
           {empTab === "dashboard" && (
             <div className="tab-content">
               <div className="tab-header"><Briefcase size={20} /><h2>İşveren Özet</h2></div>
@@ -605,7 +605,7 @@ export default function HesabimPage() {
               </div>
             </div>
           )}
-        </main>
+        </div>
       </div>
     </div>
   );
