@@ -20,3 +20,8 @@ export function cleanUsername(value: unknown) {
 export function validUsername(value: string) {
   return /^[a-z0-9_]{2,64}$/.test(value);
 }
+
+// Accepts current Discord usernames and legacy name#1234 tags.
+export function validDiscord(value: string) {
+  return /^[a-zA-Z0-9_.-]{2,32}(?:#\d{4})?$/.test(value);
+}

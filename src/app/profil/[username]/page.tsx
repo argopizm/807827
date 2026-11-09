@@ -1,4 +1,4 @@
-import { publicNameSql } from "@/lib/public-identity";
+import { publicNameSql, validDiscord } from "@/lib/public-identity";
 import { auth } from "@/auth";
 import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -30,7 +30,7 @@ function publicContactLinks(raw: string | null): ProfileData["links"] {
     if (value?.public !== true) return {};
     return {
       whatsapp: typeof value.whatsapp === "string" && /^[1-9]\d{7,14}$/.test(value.whatsapp) ? value.whatsapp : undefined,
-      discord: typeof value.discord === "string" && /^[a-z0-9_.]{2,32}$/i.test(value.discord) ? value.discord : undefined,
+      discord: typeof value.discord === "string" && validDiscord(value.discord) ? value.discord : undefined,
       portfolio: publicHttpsUrl(value.portfolio) || undefined,
     };
   } catch {
