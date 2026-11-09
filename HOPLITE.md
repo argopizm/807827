@@ -27,7 +27,7 @@ Suggested first message: “Read AGENTS.md, HOPLITE.md and README.md. Continue t
 
 ## Publishing
 
-The intended production pipeline is GitHub `main` → Cloudflare Workers Builds → `npm run build:cf` → `npx wrangler deploy`. Branch preview deployment must remain disabled with the current production bindings. Hoplite edits belong on a feature branch; review/merge to main publishes. A build failure leaves the last successful Worker serving traffic. Check Cloudflare's build result after merging.
+Configured on 2026-11-09: GitHub `main` → Cloudflare Workers Builds → `npm run build:cf` → `npx wrangler deploy`. Branch preview deployment is disabled with the current production bindings. Hoplite edits belong on a feature branch; review/merge to main publishes. A build failure leaves the last successful Worker serving traffic. Check Cloudflare's build result after merging.
 
 `npm run build:cf` only builds; it does not deploy. Never replace this with the legacy Cloudflare Pages adapter. The old `807827.pages.dev` project is not the live custom-domain Worker. Do not migrate accounts, change D1 IDs, rotate secrets or alter DNS as part of routine UI changes.
 

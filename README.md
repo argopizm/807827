@@ -4,7 +4,7 @@ Komisyonsuz freelancer keşfi, proje ilanları, hizmet kataloğu, teklif takibi,
 
 ## GitHub ve Hoplite
 
-Güncel kaynak deposu: [argopizm/807827](https://github.com/argopizm/807827). Canlı uygulama [frenaw.com](https://frenaw.com) üzerindeki `frenaw` Worker'ıdır. Üretim akışı GitHub `main` → Cloudflare Workers Builds → `npm run build:cf` → `npx wrangler deploy` olarak hazırlanmıştır. Deneme dallarının üretim bağlayıcılarıyla yayınlanması kapalı tutulmalıdır.
+Güncel kaynak deposu: [argopizm/807827](https://github.com/argopizm/807827). Canlı uygulama [frenaw.com](https://frenaw.com) üzerindeki `frenaw` Worker'ıdır. Üretim akışı 9 Kasım 2026 tarihinde GitHub `main` → Cloudflare Workers Builds → `npm run build:cf` → `npx wrangler deploy` olarak bağlanmıştır. Deneme dallarının üretim bağlayıcılarıyla yayınlanması kapalıdır.
 
 Hoplite kurulumu, güncel özellikler ve bilinen eksikler için [HOPLITE.md](HOPLITE.md) okuyun. `.hoplite/settings.json` temiz ortamda kurulum ve 3000 portunda önizleme komutlarını tanımlar. Üretim anahtarları ve kullanıcı verileri depoda bulunmaz.
 
