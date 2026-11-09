@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { normalizeCategory } from "@/lib/categories";
 import { getDB } from "@/lib/db";
-import { cleanDisplayName, cleanUsername, publicNameSql, validDisplayName, validUsername } from "@/lib/public-identity";
+import { cleanDisplayName, cleanUsername, publicNameSql, validDiscord, validDisplayName, validUsername } from "@/lib/public-identity";
 import { canPublish, emailVerificationConfig, emailVerificationError } from "@/lib/email-verification";
 import { normalizeSkills } from "@/lib/skills";
 import { cleanText, limitRequests, rateLimitResponse, readJson } from "@/lib/request-security";
@@ -103,7 +103,7 @@ export async function PUT(request: Request) {
   if (whatsapp && !/^[1-9]\d{7,14}$/.test(whatsapp)) {
     return NextResponse.json({ error: "WhatsApp numaranızı ülke koduyla girin." }, { status: 400 });
   }
-  if (discord && !/^[a-zA-Z0-9_.-]{2,32}(?:#\d{4})?$/.test(discord)) {
+  if (discord && !validDiscord(discord)) {
     return NextResponse.json({ error: "Geçerli bir Discord kullanıcı adı girin." }, { status: 400 });
   }
   if (portfolio) {

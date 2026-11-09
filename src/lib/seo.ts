@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const fallbackUrl = "https://807827.pages.dev";
+const fallbackUrl = "https://frenaw.com";
 const configured = process.env.NEXT_PUBLIC_SITE_URL;
 
 function resolveSiteUrl() {
@@ -9,7 +9,7 @@ function resolveSiteUrl() {
       const url = new URL(configured);
       if (url.protocol === "https:" && !url.username && !url.password) return new URL(url.origin);
     } catch {
-      // Missing or invalid production configuration uses the existing public hostname.
+      // Missing or invalid configuration falls back to the production domain.
     }
   }
   return new URL(fallbackUrl);
