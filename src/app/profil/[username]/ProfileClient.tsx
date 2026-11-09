@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import "./profile-refresh.css";
-import { Star, ArrowLeft, ArrowUpRight, Copy, Check, MessageSquare, Pencil, ArrowRight } from "lucide-react";
+import { BadgeCheck, Star, ArrowLeft, ArrowUpRight, Copy, Check, MessageSquare, Pencil, ArrowRight } from "lucide-react";
 
 export interface ProfileData {
   id: string;
@@ -19,6 +19,7 @@ export interface ProfileData {
   user_type: string;
   skills: string[];
   links: { whatsapp?: string; discord?: string; portfolio?: string };
+  identityMatched?: boolean;
 }
 
 export interface ReviewItem {
@@ -95,6 +96,7 @@ export default function ProfileClient({ profile, reviews, owner = false, preview
               <div className="pr-meta">
                 <span>@{profile.username}</span>
                 {profile.category && <span>{profile.category}</span>}
+                {profile.identityMatched && <span className="pr-identity" title="Ad, soyad, T.C. kimlik no ve doğum yılı NVİ kayıtlarıyla eşleşti. Hesabı kullanan kişinin kimliğini kanıtlamaz."><BadgeCheck size={13} aria-hidden="true" /> NVİ eşleşmesi</span>}
               </div>
             </div>
             {!preview && <div className="pr-head-actions">{owner ? <><Link href="/hesabim/profil" className="btn-primary"><Pencil size={16}/> Profilimi düzenle</Link><button className="btn-secondary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(location.origin + "/profil/" + encodeURIComponent(profile.username)); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { setCopied(false); } }}>{copied ? <Check size={16}/> : <Copy size={16}/>} {copied ? "Kopyalandı" : "Bağlantıyı kopyala"}</button></> : <Link href={"/mesajlar?to=" + encodeURIComponent(profile.id)} className="btn-primary"><MessageSquare size={16}/> Mesaj gönder</Link>}</div>}

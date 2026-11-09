@@ -41,3 +41,4 @@
 .content dd { overflow-wrap: anywhere; }
 .content a, .links a { color: var(--primary-dark); text-decoration: underline; text-underline-offset: 3px; }
 .links { display: flex; flex-wrap: wrap; gap: 12px 18px; padding-top: 18px; border-top: 1px solid var(--glass-border); font-size: .875rem; }
+.header .updated { font-size: 13px; margin-top: 8px; opacity: .75; }
