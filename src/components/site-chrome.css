@@ -1,0 +1,30 @@
+.site-shell{display:flex;flex-direction:column;min-height:100dvh;width:100%;--chrome-ease:cubic-bezier(.22,1,.36,1)}
+.site-shell>.site-main{padding-top:102px;flex:1;transition:padding-top .65s var(--chrome-ease)}
+.site-header{position:fixed;z-index:100;top:0;left:50%;transform:translateX(-50%);width:100%;border-radius:0;background:rgba(255,255,255,.96);box-shadow:0 1px 0 #e6e6e6;transition:width .7s var(--chrome-ease),top .7s var(--chrome-ease),border-radius .7s var(--chrome-ease),box-shadow .7s var(--chrome-ease);backdrop-filter:blur(18px)}
+.chrome-topbar{height:34px;overflow:hidden;background:#111;color:#bdbdbd;font-size:12px;transition:height .6s var(--chrome-ease),opacity .25s}
+.chrome-topbar>.container{height:34px;display:flex;align-items:center;justify-content:space-between}.chrome-topbar strong{color:#fff}
+.chrome-nav{height:68px;transition:height .65s var(--chrome-ease)}.chrome-content{height:100%;position:relative;display:flex;align-items:center;justify-content:flex-end}
+.chrome-logo{position:absolute;left:24px;top:50%;transform:translateY(-50%);transition:left .7s var(--chrome-ease),transform .7s var(--chrome-ease);white-space:nowrap}.chrome-logo-inner{display:inline-flex;align-items:center;gap:9px}
+.chrome-links{display:flex;align-items:center;transition:opacity .2s,transform .5s var(--chrome-ease);transform-origin:right center}
+.site-shell[data-auth=true]>.site-main{padding-top:0}.site-shell[data-auth=true] .site-header{top:18px;width:156px;border-radius:50px;box-shadow:0 8px 32px #31151d14,0 0 0 1px #fff9}
+.site-shell[data-auth=true] .chrome-topbar{height:0;opacity:0}.site-shell[data-auth=true] .chrome-nav{height:54px}.site-shell[data-auth=true] .chrome-logo{left:50%;transform:translate(-50%,-50%)}
+.site-shell[data-auth=true] .chrome-logo-inner{animation:chrome-float 5s 1s ease-in-out infinite}.site-shell[data-auth=true] .chrome-links{opacity:0;transform:translateY(-16px) scale(.92);pointer-events:none;visibility:hidden}
+.site-shell[data-auth=true] .chrome-footer,.site-shell[data-auth=true]>.mobile-navigation{display:none}
+@keyframes chrome-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+@media(max-width:800px){.site-shell>.site-main{padding-top:58px}.chrome-topbar{height:0;display:none}.chrome-nav{height:58px}.chrome-content{padding:0 18px}.chrome-logo{left:18px}.chrome-links{gap:0}.chrome-links>a{display:none}.chrome-links .nav-desktop-inbox{display:none}.site-shell[data-auth=true]{padding-bottom:0}.site-shell[data-auth=true] .site-header{top:max(12px,env(safe-area-inset-top));width:146px}.site-shell[data-auth=true] .chrome-nav{height:50px}}
+@media(prefers-reduced-motion:reduce){.site-shell>.site-main,.site-header,.chrome-nav,.chrome-topbar,.chrome-logo,.chrome-links{transition:none}.site-shell[data-auth=true] .chrome-logo-inner{animation:none}}
+
+body:has(.site-shell[data-auth=true]){padding-bottom:0}
+
+.chrome-links{transition:opacity .25s .2s,transform .55s .1s,visibility 0s}.site-shell[data-auth=true] .chrome-links{transition:opacity .18s,transform .45s,visibility 0s .18s}
+
+/* Keep the document and account controls stable while fonts/session data arrive. */
+html{scrollbar-gutter:stable}
+.site-shell>.site-main{transition:none}
+.chrome-account-slot{display:flex;align-items:center;justify-content:flex-end;flex:0 0 215px;width:215px;height:44px}
+.chrome-account-slot .nav-user-controls{width:100%;justify-content:flex-end}
+.chrome-account-slot .nav-avatar-btn{max-width:161px}
+.chrome-account-slot .nav-login-btn{color:#fff}
+body:has(dialog[open]){overflow:hidden}
+@media(max-width:1100px) and (min-width:801px){.chrome-links{gap:15px}.chrome-account-slot{flex-basis:185px;width:185px}.chrome-account-slot .nav-avatar-name{max-width:60px}}
+@media(max-width:800px){.chrome-account-slot{flex-basis:95px;width:95px}.chrome-account-slot .nav-avatar-skeleton{width:60px}.chrome-account-slot .nav-login-btn{font-size:12px;padding:10px 15px}}

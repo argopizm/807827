@@ -1,113 +1,145 @@
-export const runtime = "edge";
-
+import { publicNameSql } from "@/lib/public-identity";
+import { auth } from "@/auth";
+import { cache } from "react";
+import { notFound, permanentRedirect } from "next/navigation";
+import { parseSkills, publicHttpsUrl } from "@/lib/browse";
+import { categoryTitle } from "@/lib/categories";
 import { getDB, formatRelativeDate } from "@/lib/db";
-import { notFound } from "next/navigation";
+import { jsonLd, publicMetadata, siteUrl, summarize } from "@/lib/seo";
 import ProfileClient, { type ProfileData, type ReviewItem } from "./ProfileClient";
 
-async function getProfileAndReviews(username: string): Promise<{ profile: ProfileData; reviews: ReviewItem[] } | null> {
+
+interface ProfileRow {
+  id: string;
+  name: string;
+  username: string;
+  title: string | null;
+  category: string | null;
+  skills: string | null;
+  avatar: string | null;
+  bio: string | null;
+  rating_avg: number | null;
+  total_jobs_completed: number | null;
+  user_type: "freelancer" | "employer";
+  contact_links: string | null;
+}
+
+function publicContactLinks(raw: string | null): ProfileData["links"] {
   try {
-    const db = await getDB();
-    if (!db) return null;
-
-    const user = await db
-      .prepare(
-        `SELECT id, email, COALESCE(full_name, name) AS full_name, username, title, category, skills,
-                COALESCE(avatar_url, image) AS avatar_url, bio,
-                tc_verified, trust_badge, rating_avg, total_jobs_completed, user_type, contact_links
-         FROM users
-         WHERE LOWER(username) = LOWER(?) OR id = ?`
-      )
-      .bind(username, username)
-      .first<{
-        id: string;
-        email: string;
-        full_name: string | null;
-        username: string | null;
-        title: string | null;
-        category: string | null;
-        skills: string | null;
-        avatar_url: string | null;
-        bio: string | null;
-        tc_verified: number;
-        trust_badge: number;
-        rating_avg: number;
-        total_jobs_completed: number;
-        user_type: string | null;
-        contact_links: string | null;
-      }>();
-
-    if (!user) return null;
-
-    let links: Record<string, string> = {};
-    try {
-      links = JSON.parse(user.contact_links ?? "{}");
-    } catch {
-      links = {};
-    }
-
-    let parsedSkills: string[] = [];
-    try {
-      parsedSkills = JSON.parse(user.skills ?? "[]");
-    } catch {
-      parsedSkills = [];
-    }
-
-    const { results: dbReviews } = await db
-      .prepare(
-        `SELECT r.id, r.rating, r.comment, r.created_at,
-                COALESCE(u.full_name, u.name, u.username, 'Kullanıcı') AS reviewer_name,
-                COALESCE(j.title, 'Proje Değerlendirmesi') AS project_title
-         FROM reviews r
-         LEFT JOIN users u ON r.reviewer_id = u.id
-         LEFT JOIN handshakes h ON r.handshake_id = h.id
-         LEFT JOIN jobs j ON h.job_id = j.id
-         WHERE r.reviewee_id = ?
-         ORDER BY r.created_at DESC`
-      )
-      .bind(user.id)
-      .all<{
-        id: string;
-        rating: number;
-        comment: string | null;
-        created_at: string | null;
-        reviewer_name: string;
-        project_title: string;
-      }>();
-
-    const reviews: ReviewItem[] = (dbReviews ?? []).map((r) => ({
-      author: r.reviewer_name,
-      project: r.project_title,
-      rating: Number(r.rating ?? 5),
-      text: r.comment ?? "",
-      date: formatRelativeDate(r.created_at),
-    }));
-
+    const value = JSON.parse(raw ?? "{}");
+    if (value?.public !== true) return {};
     return {
-      profile: {
-        username: user.username ?? username,
-        name: user.full_name ?? "Kullanıcı",
-        title: user.title ?? undefined,
-        category: user.category ?? undefined,
-        bio: user.bio ?? "",
-        avatar: user.avatar_url ?? "",
-        tc_verified: !!user.tc_verified,
-        trust_badge: !!user.trust_badge,
-        rating: Number(user.rating_avg ?? 0),
-        jobs_done: Number(user.total_jobs_completed ?? 0),
-        user_type: user.user_type ?? "freelancer",
-        skills: Array.isArray(parsedSkills) ? parsedSkills : [],
-        links,
-      },
-      reviews,
+      whatsapp: typeof value.whatsapp === "string" && /^[1-9]\d{7,14}$/.test(value.whatsapp) ? value.whatsapp : undefined,
+      discord: typeof value.discord === "string" && /^[a-z0-9_.]{2,32}$/i.test(value.discord) ? value.discord : undefined,
+      portfolio: publicHttpsUrl(value.portfolio) || undefined,
     };
   } catch {
-    return null;
+    return {};
   }
 }
 
-export default async function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
+const getPublicProfile = cache(async function (username: string): Promise<ProfileData | null> {
+  const db = await getDB();
+  if (!db) return null;
+
+  const user = await db.prepare(
+    "SELECT id, " + publicNameSql() + " AS name, username, title, category, skills, " +
+    "COALESCE(avatar_url, image) AS avatar, bio, rating_avg, total_jobs_completed, user_type, contact_links " +
+    "FROM users WHERE (LOWER(username) = LOWER(?) OR id = ?) AND user_type IN ('freelancer', 'employer') " +
+    "AND onboarding_done = 1 AND NULLIF(TRIM(username), '') IS NOT NULL"
+  ).bind(username, username).first<ProfileRow>();
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    username: user.username,
+    name: user.name,
+    title: user.title ?? undefined,
+    category: categoryTitle(user.category),
+    bio: user.bio ?? "",
+    avatar: publicHttpsUrl(user.avatar),
+    rating: Number(user.rating_avg ?? 0),
+    jobs_done: Number(user.total_jobs_completed ?? 0),
+    user_type: user.user_type,
+    skills: parseSkills(user.skills),
+    links: publicContactLinks(user.contact_links),
+  };
+});
+
+async function getPublicReviews(userId: string): Promise<ReviewItem[]> {
+  const db = await getDB();
+  if (!db) return [];
+  const { results } = await db.prepare(
+    "SELECT r.id, r.rating, r.comment, r.created_at, " +
+    "" + publicNameSql("u") + " AS reviewer_name, j.title AS project_title " +
+    "FROM reviews r JOIN handshakes h ON h.id = r.handshake_id JOIN jobs j ON j.id = h.job_id " +
+    "LEFT JOIN users u ON r.reviewer_id = u.id " +
+    "WHERE r.reviewee_id = ? AND h.status = 'completed' AND j.status = 'completed' AND " +
+    "((h.client_id = r.reviewer_id AND h.freelancer_id = r.reviewee_id) OR " +
+    "(h.freelancer_id = r.reviewer_id AND h.client_id = r.reviewee_id)) " +
+    "ORDER BY r.created_at DESC, r.id DESC LIMIT 25"
+  ).bind(userId).all<{
+    id: string;
+    rating: number;
+    comment: string | null;
+    created_at: string | null;
+    reviewer_name: string;
+    project_title: string;
+  }>();
+
+  return results.map((review) => ({
+    id: review.id,
+    author: review.reviewer_name,
+    project: review.project_title,
+    rating: Number(review.rating),
+    text: review.comment ?? "",
+    date: formatRelativeDate(review.created_at),
+  }));
+}
+
+function pathFor(username: string) {
+  return "/profil/" + encodeURIComponent(username);
+}
+
+type Props = { params: Promise<{ username: string }> };
+
+export async function generateMetadata({ params }: Props) {
+  const profile = await getPublicProfile((await params).username);
+  if (!profile) notFound();
+  return publicMetadata({
+    title: profile.name + (profile.title ? " · " + profile.title : " · Frenaw Profili"),
+    description: summarize(profile.bio) || profile.name + " adlı kullanıcının Frenaw profili.",
+    path: pathFor(profile.username),
+    index: profile.user_type === "freelancer" && profile.bio.trim().length >= 40,
+  });
+}
+
+export default async function ProfilePage({ params }: Props) {
   const { username } = await params;
-  const data = await getProfileAndReviews(username);
-  if (!data) notFound();
-  return <ProfileClient profile={data.profile} reviews={data.reviews} />;
+  const profile = await getPublicProfile(username);
+  if (!profile) notFound();
+  if (profile.username !== username) permanentRedirect(pathFor(profile.username));
+  const [reviews, session] = await Promise.all([getPublicReviews(profile.id), auth()]);
+  const url = new URL(pathFor(profile.username), siteUrl).href;
+
+  return (
+    <>
+      {profile.user_type === "freelancer" && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd({
+          "@context": "https://schema.org",
+          "@type": "ProfilePage",
+          url,
+          mainEntity: {
+            "@type": "Person",
+            name: profile.name,
+            alternateName: profile.username,
+            description: profile.bio || undefined,
+            image: profile.avatar || undefined,
+            url,
+          },
+        }) }} />
+      )}
+      <ProfileClient profile={profile} reviews={reviews} owner={session?.user?.id === profile.id} />
+    </>
+  );
 }

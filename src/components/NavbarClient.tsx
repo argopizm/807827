@@ -1,82 +1,96 @@
 "use client";
 
+import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState, useRef, useEffect } from "react";
-import { User, LogOut, Settings, ChevronDown } from "lucide-react";
+import { User, LogOut, Settings, ChevronDown, LifeBuoy, MessageCircle } from "lucide-react";
 
 export default function NavbarClient() {
   const { data: session, status } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+    if (!menuOpen) return;
+    function closeOnOutsideClick(event: PointerEvent) {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
         setMenuOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [menuOpen]);
 
-  if (status === "loading") {
-    return <div className="nav-avatar-skeleton" />;
-  }
+  if (status === "loading") return <span className="nav-avatar-skeleton" aria-hidden="true" />;
 
   if (status === "unauthenticated") {
-    return (
-      <a href="/giris" className="btn-primary nav-login-btn" style={{ textDecoration: "none" }}>
-        Giriş Yap
-      </a>
-    );
+    return <Link href="/giris" className="btn-primary nav-login-btn">Giriş yap</Link>;
   }
 
-  const avatar = session?.user?.image;
-  const name = session?.user?.name ?? "Kullanıcı";
-  const firstName = name.split(" ")[0];
+  const name = session?.user?.name?.trim() || "Kullanıcı";
+  const firstName = name;
   const initial = firstName.charAt(0).toLocaleUpperCase("tr");
+  const closeMenu = () => setMenuOpen(false);
 
   return (
-    <div className="nav-user-menu" ref={menuRef}>
-      <button className="nav-avatar-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Hesap menüsü">
-        {avatar ? (
-          <img src={avatar} alt={name} className="nav-avatar-img" />
-        ) : (
-          <span className="ava" style={{ width: 32, height: 32, fontSize: 13 }}>{initial}</span>
-        )}
-        <span className="nav-avatar-name">{firstName}</span>
-        <ChevronDown size={14} className={`nav-chevron ${menuOpen ? "open" : ""}`} />
-      </button>
+    <div className="nav-user-controls">
+      <Link href="/mesajlar" prefetch={false} className="nav-desktop-inbox" aria-label="Mesajlar">
+        <MessageCircle size={19} aria-hidden="true" />
+      </Link>
+      <div className="nav-user-menu" ref={menuRef}>
+        <button
+          ref={triggerRef}
+          type="button"
+          className="nav-avatar-btn"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Hesap menüsü"
+          aria-expanded={menuOpen}
+          aria-controls={menuOpen ? "account-navigation" : undefined}
+        >
+          <span className="ava nav-avatar-initial" aria-hidden="true">{initial}</span>
+          <span className="nav-avatar-name">{firstName}</span>
+          <ChevronDown size={14} className={'nav-chevron' + (menuOpen ? ' open' : '')} aria-hidden="true" />
+        </button>
 
-      {menuOpen && (
-        <div className="nav-dropdown glass-card">
-          <div className="nav-dropdown-header">
-            {avatar ? (
-              <img src={avatar} alt={name} className="nav-dropdown-avatar" />
-            ) : (
-              <span className="ava" style={{ width: 38, height: 38, fontSize: 15 }}>{initial}</span>
-            )}
-            <div>
+        {menuOpen && (
+          <div id="account-navigation" className="nav-dropdown glass-card">
+            <div className="nav-dropdown-header">
+              <span className="ava nav-avatar-initial" aria-hidden="true">{initial}</span>
               <p className="nav-dropdown-name">{name}</p>
-              <p className="nav-dropdown-email">{session?.user?.email}</p>
             </div>
+            <hr className="nav-dropdown-divider" />
+            <Link href="/profilim" prefetch={false} className="nav-dropdown-item" onClick={closeMenu}><User size={17} aria-hidden="true"/> Profilim</Link>
+            <Link href="/hesabim" prefetch={false} className="nav-dropdown-item" onClick={closeMenu}>
+              <Settings size={17} aria-hidden="true" /> Hesabım
+            </Link>
+            <Link href="/profil" className="nav-dropdown-item" onClick={closeMenu}>
+              <User size={17} aria-hidden="true" /> Freelancer bul
+            </Link>
+            <Link href="/destek" prefetch={false} className="nav-dropdown-item" onClick={closeMenu}>
+              <LifeBuoy size={17} aria-hidden="true" /> Destek merkezi
+            </Link>
+            <hr className="nav-dropdown-divider" />
+            <button
+              type="button"
+              className="nav-dropdown-item danger"
+              onClick={() => { closeMenu(); void signOut({ redirectTo: "/" }); }}
+            >
+              <LogOut size={17} aria-hidden="true" /> Çıkış yap
+            </button>
           </div>
-          <hr className="nav-dropdown-divider" />
-          <a href="/hesabim" className="nav-dropdown-item" onClick={() => setMenuOpen(false)}>
-            <Settings size={15} /> Hesabım
-          </a>
-          <a href="/profil" className="nav-dropdown-item" onClick={() => setMenuOpen(false)}>
-            <User size={15} /> Freelancer Bul
-          </a>
-          <hr className="nav-dropdown-divider" />
-          <button
-            className="nav-dropdown-item danger"
-            onClick={() => { setMenuOpen(false); signOut({ callbackUrl: "/" }); }}
-          >
-            <LogOut size={15} /> Çıkış Yap
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

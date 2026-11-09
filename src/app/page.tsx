@@ -1,389 +1,281 @@
-export const runtime = "edge";
+export const dynamic = "force-dynamic";
 
-import type { Metadata } from "next";
+
+import CategoryImage from "@/components/CategoryImage";
+import MarketplaceCard from "@/components/MarketplaceCard";
+import FreelancerRail from "@/components/FreelancerRail";
+import { randomFreelancers } from "@/lib/browse";
+import Link from "next/link";
 import {
-  Search, Check, ArrowRight, Code2, PenTool, Megaphone,
-  Languages, Clapperboard, Mic, Wallet, ShieldCheck,
-  Handshake, Lock, Minus, Plus
+  ArrowDownRight, ArrowRight, ArrowUpRight, Check, ClipboardList,
+  Handshake, MessageCircle, Plus, Search,
 } from "lucide-react";
+import { CATEGORY_GROUPS } from "@/lib/categories";
 import { getDB } from "@/lib/db";
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+import { jsonLd, publicMetadata, siteUrl } from "@/lib/seo";
+import styles from "./page.module.css";
 
-export const metadata: Metadata = {
-  title: "Freelancer Türkiye | %0 Komisyonlu Freelancer Platformu",
-  description: "Türkiye'nin tek komisyonsuz freelancer platformu. Yazılım, tasarım, çeviri ve daha fazlası için iş ilanı verin veya teklif alın. TC Kimlik doğrulamalı güvenli profiller.",
-  keywords: ["freelancer türkiye", "komisyonsuz freelancer", "iş ilanı", "yazılım freelancer", "tasarım iş ilanı", "uzak çalışma", "serbest çalışan"],
-  openGraph: {
-    title: "Freelancer Türkiye | %0 Komisyonsuz Platform",
-    description: "Aracı yok, komisyon yok. Türk freelancer'lar için en şeffaf platform.",
-    url: "https://807827.pages.dev",
-    siteName: "Freelancer Türkiye",
-    locale: "tr_TR",
-    type: "website",
+const title = "Frenaw | Türkiye’nin komisyonsuz freelancer platformu";
+const description = "Tasarım, yazılım, video ve diğer alanlarda freelancer bulun. Projenizi yayınlayın, uzmanlarla konuşun ve komisyon ödemeden birlikte çalışın.";
+
+const homeMetadata = publicMetadata({ title, description, path: "/" });
+const shareImage = { url: "/images/frenaw-paylasim.jpg", width: 1200, height: 630, alt: "Frenaw proje çalışma alanı" };
+
+export const metadata = {
+  ...homeMetadata,
+  title: { absolute: title },
+  openGraph: { ...homeMetadata.openGraph, images: [shareImage] },
+  twitter: { card: "summary_large_image" as const, title, description, images: [shareImage.url] },
+};
+
+const popularSearches = ["Logo tasarımı", "WordPress", "Video kurgu", "SEO"];
+
+const steps = [
+  {
+    title: "İşini anlat",
+    description: "İhtiyacını, bütçeni ve teslim tarihini yaz. Uzmanlar neye ihtiyacın olduğunu ilk bakışta anlasın.",
+    icon: ClipboardList,
+    preview: "Proje özeti",
   },
-};
-
-const faqSchema = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "Freelancer Türkiye komisyon alıyor mu?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Hayır. Freelancer Türkiye %0 komisyon alır. Kazandığınızın tamamı sizin."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Nasıl iş ilanı verebilirim?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Hesap oluşturun, 'İlan Ver' sayfasına gidin ve projenizin detaylarını doldurun. İlanınız dakikalar içinde yayında olur."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "TC Kimlik doğrulaması zorunlu mu?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Zorunlu değil, ancak TC Kimlik doğrulaması yapan kullanıcılar 'Onaylı Profil' rozeti kazanır ve daha fazla güven uyandırır."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Ödeme nasıl gerçekleşiyor?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Ödeme tamamen freelancer ve işveren arasında gerçekleşir. Platform herhangi bir kesinti yapmaz. İki taraf anlaştıktan sonra 'El Sıkışma' süreci başlatılır."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Platform güvenli mi?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Evet. TC Kimlik doğrulaması, Google ile güvenli giriş ve şifreli iletişim sayesinde platformumuz güvenli bir ortam sunar."
-      }
-    }
-  ]
-};
-
-const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "name": "Freelancer Türkiye",
-  "url": "https://807827.pages.dev",
-  "description": "Türkiye'nin komisyonsuz freelancer platformu",
-  "potentialAction": {
-    "@type": "SearchAction",
-    "target": "https://807827.pages.dev/ilanlar?q={search_term_string}",
-    "query-input": "required name=search_term_string"
-  }
-};
+  {
+    title: "Uzmanlarla konuş",
+    description: "Portföyleri ve teklifleri incele. Aklındaki soruları doğrudan site içi mesajla sor.",
+    icon: MessageCircle,
+    preview: "Teklifleri karşılaştır",
+  },
+  {
+    title: "Birlikte ilerle",
+    description: "Kapsamı ve teslim koşullarını netleştir. Çalışma tamamlandığında deneyimini değerlendir.",
+    icon: Handshake,
+    preview: "Çalışmayı başlat",
+  },
+];
 
 const faqs = [
   {
-    q: "Freelancer Türkiye komisyon alıyor mu?",
-    a: "Hayır. Freelancer Türkiye %0 komisyon alır. Kazandığınızın tamamı size aittir. Platform, ileride premium özellikler sunabilir ancak temel hizmetler her zaman ücretsiz kalacaktır."
+    question: "Frenaw komisyon alıyor mu?",
+    answer: "Frenaw, freelancer ile işveren arasında kararlaştırılan proje bedelinden komisyon almaz.",
   },
   {
-    q: "Nasıl iş ilanı verebilirim?",
-    a: "Hesap oluşturun, 'İlan Ver' sayfasına gidin ve projenizin detaylarını (bütçe, kategori, açıklama) doldurun. İlanınız dakikalar içinde yayında olur."
+    question: "Nasıl proje ilanı veririm?",
+    answer: "Hesabınıza giriş yaptıktan sonra İlan Ver sayfasında projenin kapsamını, bütçesini ve kategorisini belirtin. İlan yayınlandığında uzmanlar size teklif gönderebilir.",
   },
   {
-    q: "TC Kimlik doğrulaması zorunlu mu?",
-    a: "Zorunlu değil, tamamen isteğe bağlı. Ancak TC Kimlik doğrulaması yapan kullanıcılar profillerinde 'Onaylı Profil' rozeti kazanır ve bu sayede çok daha fazla güven uyandırır. Bilgileriniz sistemimizde saklanmaz."
+    question: "Ödeme nasıl gerçekleşiyor?",
+    answer: "Ödeme yöntemini ve takvimini taraflar birlikte belirler. Frenaw üzerinden ödeme alınmaz. İşe başlamadan önce kapsamı, teslimleri ve ücret koşullarını yazılı olarak netleştirin.",
   },
   {
-    q: "Ödeme nasıl gerçekleşiyor?",
-    a: "Ödeme tamamen freelancer ve işveren arasında gerçekleşir. Platform herhangi bir kesinti yapmaz. İki taraf anlaşma sağladıktan sonra platform üzerinden 'El Sıkışma' süreci başlatılır ve iş resmi hale gelir."
+    question: "Frenaw kimlik numarası istiyor mu?",
+    answer: "Frenaw şu anda T.C. kimlik numarası istemez. Kimlik bilgilerinizi mesaj veya destek talebinde paylaşmayın.",
   },
   {
-    q: "Anlaşmazlık durumunda ne olur?",
-    a: "Platform bir tahkim veya arabuluculuk mekanizması sunmaktadır. Taraflar arasında anlaşmazlık yaşanması durumunda destek ekibimiz yönlendirme yapabilir. Bu nedenle tüm iletişimi platform üzerinde tutmanızı öneririz."
-  },
-  {
-    q: "Hangi ödeme yöntemleri kabul ediliyor?",
-    a: "Platform herhangi bir ödeme yöntemi zorunlu kılmaz; bu tamamen taraflara bırakılmıştır. Havale/EFT, kripto para veya nakit gibi her türlü yöntem kullanılabilir."
+    question: "Bir sorun yaşarsam nasıl destek alırım?",
+    answer: "Hesabınızdaki destek bölümünden talep oluşturabilir ve yanıtları takip edebilirsiniz. Hesap ve platform sorunları için destek ekibine başvurabilirsiniz.",
   },
 ];
 
-const categories = [
-  { icon: Code2, title: "Yazılım & Kod", desc: "Web, mobil, API geliştirme", q: "Yazılım" },
-  { icon: PenTool, title: "Tasarım & UI/UX", desc: "Logo, arayüz, kurumsal kimlik", q: "Tasarım" },
-  { icon: Megaphone, title: "Dijital Pazarlama", desc: "SEO, sosyal medya, reklam", q: "Pazarlama" },
-  { icon: Languages, title: "Çeviri & Yazarlık", desc: "Teknik çeviri, içerik, metin", q: "Çeviri" },
-  { icon: Clapperboard, title: "Video & Animasyon", desc: "Kurgu, motion grafik, reklam", q: "Video" },
-  { icon: Mic, title: "Seslendirme", desc: "Reklam, e-kitap, podcast", q: "Seslendirme" },
-];
+type RecentJob = { id: string; title: string; category: string | null; budget_range: string | null };
 
-const steps = [
-  { num: "01", title: "Hesabınızı oluşturun", desc: "E-posta ya da Google hesabınızla dakikalar içinde ücretsiz kayıt olun. Kredi kartı gerekmez." },
-  { num: "02", title: "İlan verin veya teklif gönderin", desc: "Projenizi yayınlayın ya da size uygun ilanlara doğrudan teklif verin." },
-  { num: "03", title: "Anlaşın, el sıkışın", desc: "Şartlarda uzlaşınca El Sıkışma ile işi kayıt altına alın. Ödeme doğrudan taraflar arasında." },
-];
-
-interface LiveStats {
-  freelancerCount: number;
-  completedJobs: number;
-  avgRating: number;
-  recentJobs: { id: string; title: string; category: string; budget: string; proposals: number }[];
-}
-
-async function getHomeData(): Promise<LiveStats> {
-  const fallback: LiveStats = { freelancerCount: 0, completedJobs: 0, avgRating: 0, recentJobs: [] };
+async function getHomeData() {
+  const fallback = { freelancers: null, completed: null, rating: null, jobs: [] as RecentJob[] };
   try {
     const db = await getDB();
     if (!db) return fallback;
 
-    const flRow = await db
-      .prepare("SELECT COUNT(*) AS cnt FROM users WHERE user_type = 'freelancer' OR user_type IS NULL")
-      .first<{ cnt: number }>();
-
-    const completedRow = await db
-      .prepare("SELECT (SELECT COUNT(*) FROM jobs WHERE status = 'completed') + COALESCE((SELECT SUM(total_jobs_completed) FROM users), 0) AS total")
-      .first<{ total: number }>();
-
-    const ratingRow = await db
-      .prepare("SELECT COALESCE((SELECT AVG(rating) FROM reviews), (SELECT AVG(rating_avg) FROM users WHERE rating_avg > 0), 0) AS avg_rating")
-      .first<{ avg_rating: number }>();
-
-    const { results: jobs } = await db
-      .prepare(
-        `SELECT j.id, j.title, j.category, j.budget_range,
-                (SELECT COUNT(*) FROM handshakes h WHERE h.job_id = j.id) AS proposals
-         FROM jobs j
-         WHERE j.status = 'open'
-         ORDER BY j.created_at DESC
-         LIMIT 3`
-      )
-      .all<{ id: string; title: string; category: string | null; budget_range: string | null; proposals: number }>();
+    const [freelancers, completed, rating, recent] = await Promise.all([
+      db.prepare("SELECT COUNT(*) AS count FROM users WHERE user_type = 'freelancer' AND onboarding_done = 1 AND username IS NOT NULL").first<{ count: number }>(),
+      db.prepare("SELECT COUNT(*) AS count FROM jobs WHERE status = 'completed'").first<{ count: number }>(),
+      db.prepare("SELECT AVG(rating) AS average FROM reviews WHERE rating BETWEEN 1 AND 5").first<{ average: number | null }>(),
+      db.prepare("SELECT id, title, category, budget_range FROM jobs WHERE status = 'open' ORDER BY created_at DESC, id DESC LIMIT 3").all<RecentJob>(),
+    ]);
 
     return {
-      freelancerCount: flRow?.cnt ?? 0,
-      completedJobs: completedRow?.total ?? 0,
-      avgRating: Number(ratingRow?.avg_rating ?? 0),
-      recentJobs: (jobs ?? []).map((j) => ({
-        id: String(j.id),
-        title: String(j.title),
-        category: String(j.category ?? "Genel"),
-        budget: String(j.budget_range ?? "Belirtilmemiş"),
-        proposals: Number(j.proposals ?? 0),
-      })),
+      freelancers: freelancers?.count ?? 0,
+      completed: completed?.count ?? 0,
+      rating: rating?.average ?? null,
+      jobs: recent.results,
     };
   } catch {
     return fallback;
   }
 }
 
-export default async function Home() {
-  const session = await auth();
-  if (session?.user) {
-    redirect("/hesabim");
-  }
+function SectionHeading({ eyebrow, title, id, href, link }: {
+  eyebrow?: string;
+  title: string;
+  id: string;
+  href?: string;
+  link?: string;
+}) {
+  return (
+    <div className={styles.sectionHeading}>
+      <div>
+        {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
+        <h2 id={id}>{title}</h2>
+      </div>
+      {href && link && (
+        <Link className={styles.textLink} href={href}>
+          {link}<ArrowRight size={17} aria-hidden="true" />
+        </Link>
+      )}
+    </div>
+  );
+}
 
-  const stats = await getHomeData();
+export default async function Home() {
+  const [stats, freelancers] = await Promise.all([getHomeData(), randomFreelancers()]);
+  const schema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Frenaw",
+    url: siteUrl.href,
+    description,
+    inLanguage: "tr-TR",
+  };
+  const formatter = new Intl.NumberFormat("tr-TR");
+  const ratingFormat = new Intl.NumberFormat("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
   return (
-    <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
-
-      {/* ─── HERO ─── */}
-      <section className="h-hero">
-        <div className="container h-hero-grid">
-          <div>
-            <span className="eyebrow">Komisyonsuz freelancer platformu</span>
-            <h1>
-              Doğru freelancer&apos;ı bulun.<br />
-              <em>Komisyon ödemeyin.</em>
+    <div className={styles.home}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
+      <section className={styles.hero} aria-labelledby="home-title">
+        <div className={'container ' + styles.heroGrid}>
+          <div className={styles.heroCopy}>
+            <h1 id="home-title">
+              Projenize uygun <em>freelancer’ı bulun.</em>
             </h1>
-            <p className="lead">
-              Yazılımdan tasarıma, çeviriden pazarlamaya; işverenleri ve freelancer&apos;ları aracısız buluşturuyoruz.
-              Kazancın tamamı emeği verene kalır.
+            <p className={styles.heroLead}>
+              Tasarımdan yazılıma, videodan çeviriye. Doğru uzmanla tanışın, projenizi konuşun ve komisyon ödemeden birlikte çalışın.
             </p>
 
-            <form action="/ilanlar" className="h-search" role="search">
-              <Search size={19} />
-              <input name="q" placeholder="Hangi işi arıyorsunuz? Örn. logo tasarımı" aria-label="İş ara" />
-              <button type="submit">Ara</button>
+            <form action="/profil" className={styles.search} role="search">
+              <Search size={21} aria-hidden="true" />
+              <input type="search" name="q" placeholder="Uzmanlık ara" aria-label="Freelancer ara" maxLength={100} />
+              <button type="submit">Freelancer bul <ArrowRight size={16} aria-hidden="true" /></button>
             </form>
-
-            <div className="h-popular">
-              <span>Popüler:</span>
-              <a href="/ilanlar?q=React">React</a>
-              <a href="/ilanlar?q=Logo">Logo</a>
-              <a href="/ilanlar?q=SEO">SEO</a>
-              <a href="/ilanlar?q=Çeviri">Çeviri</a>
+            <div className={styles.popular}>
+              <span>Öne çıkanlar</span>
+              {popularSearches.map((term) => (
+                <Link key={term} href={{ pathname: "/profil", query: { q: term } }}>{term}</Link>
+              ))}
             </div>
-
-            <div className="h-checks">
-              <span><Check size={16} strokeWidth={3} /> %0 komisyon</span>
-              <span><Check size={16} strokeWidth={3} /> TC kimlik doğrulamalı profiller</span>
-              <span><Check size={16} strokeWidth={3} /> Ücretsiz kayıt</span>
+            <div className={styles.heroBottom}>
+              <Link className={styles.textLink} href="/ilan-ver">Ücretsiz proje ilanı ver <ArrowUpRight size={17} aria-hidden="true" /></Link>
+              <span><Check size={16} aria-hidden="true" /> %0 platform komisyonu</span>
             </div>
           </div>
+          <figure className={styles.heroArt}>
+            {/* Local, pre-sized WebP sources keep the hero responsive on Cloudflare Pages. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={styles.heroImage}
+              src="/images/frenaw-hero.webp"
+              srcSet="/images/frenaw-hero-small.webp 600w, /images/frenaw-hero.webp 1080w"
+              sizes="(max-width: 800px) calc(100vw - 36px), 510px"
+              width={1080}
+              height={900}
+              fetchPriority="high"
+              alt="Proje üzerinde birlikte çalışan bir ekip"
+            />
+          </figure>
+        </div>
+      </section>
 
-          <aside className="h-panel" aria-label="Son ilanlar">
-            <div className="h-panel-head">
-              <span>Son yayınlanan ilanlar</span>
-              <span className="live">Canlı</span>
-            </div>
-            {stats.recentJobs.length === 0 ? (
-              <div style={{ padding: "28px 18px", textAlign: "center", color: "var(--text-muted)", fontSize: 14 }}>
-                <p style={{ marginBottom: 10 }}>Henüz yayınlanmış aktif ilan yok.</p>
-                <a href="/ilan-ver" className="link-arrow" style={{ justifyContent: "center" }}>
-                  İlk ilanı ücretsiz yayınlayın <ArrowRight size={15} />
-                </a>
+      <section className={'container ' + styles.stats} aria-label="Platform verileri">
+        <div><strong>%0</strong><span>Platform komisyonu</span></div>
+        <div><strong>{stats.freelancers === null ? "—" : formatter.format(stats.freelancers)}</strong><span>Freelancer profili</span></div>
+        <div><strong>{stats.completed === null ? "—" : formatter.format(stats.completed)}</strong><span>Tamamlanan proje</span></div>
+        <div><strong>{stats.rating === null ? "—" : ratingFormat.format(stats.rating) + " / 5"}</strong><span>Ortalama değerlendirme</span></div>
+      </section>
+
+      <section className={'container ' + styles.section} aria-labelledby="category-title">
+        <SectionHeading
+          eyebrow="Uzmanlık alanları"
+          title="Projenin ihtiyacına göre keşfet."
+          id="category-title"
+          href="/kategoriler"
+          link="Tüm kategoriler"
+        />
+        <div className={styles.categories}>
+          {CATEGORY_GROUPS.map((group) => (
+            <Link key={group.slug} className={styles.category} href={'/kategoriler/' + group.slug}>
+              <div className={styles.categoryPhoto}>
+                <CategoryImage slug={group.slug} title={group.title} />
               </div>
-            ) : (
-              stats.recentJobs.map((j) => (
-                <a key={j.id} href={`/isler/${j.id}`} className="h-panel-row" style={{ textDecoration: "none" }}>
-                  <b>{j.title}</b>
-                  <span className="price">{j.budget}</span>
-                  <small>{j.category} · {j.proposals} teklif</small>
-                </a>
-              ))
-            )}
-            <div className="h-panel-foot">
-              <span>Platformun aldığı komisyon</span>
-              <strong>%0</strong>
-            </div>
-          </aside>
+              <div className={styles.categoryInfo}>
+                <span>{group.specialties.length} uzmanlık</span>
+                <h3>{group.title}</h3>
+                <ArrowUpRight size={20} aria-hidden="true" />
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 
-      {/* ─── STATS (Gerçek Veritabanı Verileri) ─── */}
-      <section className="container" aria-label="Platform istatistikleri">
-        <div className="h-stats">
-          <div className="h-stat">
-            <strong className="red">%0</strong>
-            <span>Komisyon, her zaman</span>
-          </div>
-          <div className="h-stat">
-            <strong>{stats.freelancerCount.toLocaleString("tr-TR")}</strong>
-            <span>Aktif freelancer</span>
-          </div>
-          <div className="h-stat">
-            <strong>{stats.completedJobs.toLocaleString("tr-TR")}</strong>
-            <span>Tamamlanan iş</span>
-          </div>
-          <div className="h-stat">
-            <strong>
-              {stats.avgRating > 0 ? `${stats.avgRating.toFixed(1).replace(".", ",")} / 5` : "– / 5"}
-            </strong>
-            <span>Ortalama memnuniyet</span>
-          </div>
-        </div>
-      </section>
+      <FreelancerRail profiles={freelancers.items} available={freelancers.available} />
 
-      {/* ─── CATEGORIES ─── */}
-      <section className="sec" aria-labelledby="cat-title">
-        <div className="container">
-          <div className="sec-head">
-            <div>
-              <span className="eyebrow">Kategoriler</span>
-              <h2 id="cat-title" className="h-section">Her alanda uzman freelancer&apos;lar</h2>
-            </div>
-            <a href="/ilanlar" className="link-arrow">Tüm ilanlar <ArrowRight size={16} /></a>
-          </div>
-          <div className="h-cats">
-            {categories.map(({ icon: Icon, title, desc, q }) => (
-              <a key={title} href={`/ilanlar?kategori=${encodeURIComponent(q)}`} className="h-cat">
-                <span className="h-cat-icon"><Icon size={20} strokeWidth={1.75} /></span>
-                <div>
-                  <h3>{title}</h3>
-                  <p>{desc}</p>
+      <section id="nasil" className={styles.process} aria-labelledby="process-title">
+        <div className={'container ' + styles.section}>
+          <SectionHeading title="Fikirden iş birliğine." id="process-title" />
+          <div className={styles.steps}>
+            {steps.map(({ title, description, icon: Icon, preview }) => (
+              <article key={title} className={styles.step}>
+                <div className={styles.stepVisual} aria-hidden="true">
+                  <span className={styles.stepIcon}><Icon size={25} strokeWidth={1.75} /></span>
+                  <span className={styles.stepPreview}>
+                    {preview}<span /><span />
+                  </span>
                 </div>
-              </a>
+                <h3>{title}</h3>
+                <p>{description}</p>
+              </article>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── HOW IT WORKS ─── */}
-      <section id="nasil" className="sec sec-alt" aria-labelledby="how-title">
-        <div className="container">
-          <div className="sec-head">
-            <div>
-              <span className="eyebrow">Nasıl çalışır?</span>
-              <h2 id="how-title" className="h-section">Üç adımda işe başlayın</h2>
-            </div>
-          </div>
-          <div className="h-steps">
-            {steps.map((s) => (
-              <div key={s.num} className="h-step">
-                <span className="h-step-num">ADIM {s.num}</span>
-                <h3>{s.title}</h3>
-                <p>{s.desc}</p>
-              </div>
+      <section className={'container ' + styles.section} aria-labelledby="jobs-title">
+        <SectionHeading title="Yayındaki son ilanlar." id="jobs-title" href="/ilanlar" link="Tüm ilanlar" />
+        {stats.jobs.length > 0 ? (
+          <div className={styles.jobs}>
+            {stats.jobs.map((job) => (
+                <MarketplaceCard key={job.id} variant="home" href={'/isler/' + encodeURIComponent(job.id)} title={job.title} category={job.category} budget={job.budget_range || "Bütçe görüşülür"}/>
             ))}
           </div>
-        </div>
+        ) : (
+          <div className={styles.empty}>
+            <p>Burada gösterilecek açık proje bulunamadı.</p>
+            <Link href="/ilan-ver" className={styles.textLink}>Proje ilanı ver <ArrowRight size={17} aria-hidden="true" /></Link>
+          </div>
+        )}
       </section>
 
-      {/* ─── WHY US ─── */}
-      <section className="sec" aria-labelledby="why-title">
-        <div className="container h-why">
+      <section id="sss" className={styles.faqSection} aria-labelledby="faq-title">
+        <div className={'container ' + styles.section + ' ' + styles.faqGrid}>
           <div>
-            <span className="eyebrow">Neden Freelancer Türkiye?</span>
-            <h2 id="why-title" className="h-section">Emeğinizin karşılığı, kesintisiz.</h2>
-            <p className="lead">
-              Büyük platformlar her işten %20&apos;ye varan komisyon keser. Biz temel hizmetler için hiçbir kesinti yapmıyoruz.
-            </p>
-            <ul className="h-why-list">
-              <li><Wallet size={20} /><div><strong>%0 komisyon</strong><span>Anlaştığınız ücretin tamamı sizde kalır.</span></div></li>
-              <li><ShieldCheck size={20} /><div><strong>Kimlik doğrulama</strong><span>NVİ üzerinden TC doğrulaması ile onaylı profil rozeti.</span></div></li>
-              <li><Handshake size={20} /><div><strong>El Sıkışma</strong><span>Anlaşmalarınızı platformda kayıt altına alın.</span></div></li>
-              <li><Lock size={20} /><div><strong>Güvenli iletişim</strong><span>Verileriniz korunur, iletişiminiz sizde kalır.</span></div></li>
-            </ul>
+            <SectionHeading eyebrow="Sıkça sorulan sorular" title="Aklınıza takılanlar." id="faq-title" />
+            <Link href="/destek" className={styles.textLink}>Destek merkezi <ArrowUpRight size={17} aria-hidden="true" /></Link>
           </div>
-          <table className="h-table">
-            <thead>
-              <tr><th>Platform</th><th>Komisyon</th><th>Kimlik doğrulama</th></tr>
-            </thead>
-            <tbody>
-              <tr className="us"><td>Freelancer Türkiye</td><td style={{ color: "var(--primary)" }}>%0</td><td className="yes"><Check size={18} strokeWidth={3} /></td></tr>
-              <tr><td>Upwork</td><td>%10–20</td><td className="no"><Minus size={18} /></td></tr>
-              <tr><td>Fiverr</td><td>%20</td><td className="no"><Minus size={18} /></td></tr>
-              <tr><td>Bionluk</td><td>%15</td><td className="no"><Minus size={18} /></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      {/* ─── FAQ ─── */}
-      <section id="sss" className="sec sec-alt" aria-labelledby="faq-title">
-        <div className="container">
-          <span className="eyebrow">Sıkça sorulan sorular</span>
-          <h2 id="faq-title" className="h-section" style={{ marginBottom: 24 }}>Merak ettikleriniz</h2>
-          <div className="h-faq">
-            {faqs.map((faq) => (
-              <details key={faq.q}>
-                <summary>{faq.q}<Plus size={20} /></summary>
-                <p>{faq.a}</p>
+          <div className={styles.faq}>
+            {faqs.map(({ question, answer }) => (
+              <details key={question}>
+                <summary>{question}<Plus size={20} aria-hidden="true" /></summary>
+                <p>{answer}</p>
               </details>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── CTA ─── */}
-      <section className="container" style={{ paddingTop: 64, paddingBottom: 88 }} aria-label="Kayıt ol çağrısı">
-        <div className="h-cta">
+      <section className={'container ' + styles.section} aria-labelledby="join-title">
+        <div className={styles.join}>
           <div>
-            <h2>Bugün ücretsiz başlayın.</h2>
-            <p>Komisyon yok, sözleşme yok. İlk ilanınızı dakikalar içinde yayınlayın.</p>
+            <span className={styles.eyebrow}>Frenaw’a katılın</span>
+            <h2 id="join-title">Sıradaki projeniz burada başlayabilir.</h2>
           </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <a href="/giris" className="btn-white">Ücretsiz hesap oluştur</a>
-            <a href="/ilanlar" className="btn-outline-w">İlanları incele</a>
-          </div>
+          <Link href="/ilan-ver" className={styles.joinButton}>İlan ver <ArrowDownRight size={19} aria-hidden="true" /></Link>
         </div>
       </section>
-    </>
+    </div>
   );
 }

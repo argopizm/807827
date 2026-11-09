@@ -1,9 +1,32 @@
-name = "807827"
-compatibility_date = "2024-09-23"
+name = "frenaw"
+compatibility_date = "2026-11-04"
 compatibility_flags = [ "nodejs_compat" ]
-pages_build_output_dir = ".vercel/output/static"
+main = ".open-next/worker.js"
+
+workers_dev = false
+preview_urls = false
+routes = [{ pattern = "frenaw.com", custom_domain = true }, { pattern = "www.frenaw.com", custom_domain = true }]
+
+[vars]
+SITE_URL = "https://frenaw.com"
+AUTH_URL = "https://frenaw.com"
+EMAIL_FROM = "Frenaw <destek@frenaw.com>"
+FRENAW_LEGAL_NAME = "Ali Coşar"
+FRENAW_LEGAL_EMAIL = "destek@frenaw.com"
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "frelancer_db"
 database_id = "2b9ab9d6-644e-4682-a529-b9cbfa729d75"
+migrations_dir = "db/migrations"
+
+[[services]]
+binding = "WORKER_SELF_REFERENCE"
+service = "frenaw"
+
+[observability]
+enabled = false

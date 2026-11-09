@@ -43,3 +43,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/.open-next/
+/.dev.vars*
+
+# Private local handoff and database exports
+/ANTIGRAVITY_HANDOFF.md
+*.sqlite*
+*.db
+*.sql.bak

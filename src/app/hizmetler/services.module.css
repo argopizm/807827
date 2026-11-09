@@ -1,0 +1,31 @@
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.card { min-width: 0; padding: 24px; border: 1px solid var(--glass-border, #dedee5); border-radius: 16px; background: #fff; display: flex; flex-direction: column; align-items: start; gap: 12px; overflow-wrap: anywhere; }
+.card h2 { margin: 0; font-size: 22px; line-height: 1.25; }
+.card p { margin: 0; color: var(--muted, #5e606b); line-height: 1.65; flex: 1; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: space-between; width: 100%; font-size: 14px; }
+.page { padding-block: 36px 70px; min-width: 0; }
+.header { margin-bottom: 25px; }
+.header h1 { font-size: clamp(30px, 4.5vw, 48px); margin: 12px 0; overflow-wrap: anywhere; }
+.header p { max-width: 680px; color: var(--muted, #5e606b); }
+.detail { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(220px, .8fr); gap: 22px; align-items: start; }
+.body { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.side { display: grid; gap: 14px; }
+.side h2, .form h2, .owned h2 { margin: 0; font-size: 23px; }
+.side p { margin: 0; }
+.form { display: grid; gap: 15px; width: 100%; max-width: 780px; }
+.form label { display: grid; gap: 6px; font-weight: 650; }
+.form :is(input, select, textarea) { width: 100%; min-width: 0; font: inherit; padding: 10px 12px; color: #25262c; }
+.form textarea { resize: vertical; }
+.form button { justify-self: start; min-height: 44px; }
+.help { color: var(--muted, #5e606b); font-size: 14px; line-height: 1.6; }
+.notice { padding: 12px; border-radius: 8px; background: #fbe9ed; color: #762539; margin-block: 12px; }
+.owned { margin-top: 36px; display: grid; gap: 14px; }
+.owned article { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: 12px; border: 1px solid var(--glass-border, #dedee5); border-radius: 12px; padding: 16px; }
+.owned article > div { min-width: 0; overflow-wrap: anywhere; }
+.owned h3 { margin: 0; }
+.owned p { margin: 4px 0; }
+.owned button { min-height: 44px; cursor: pointer; }
+.header{border:1px solid #eee0e5;border-radius:22px;padding:32px;background:radial-gradient(ellipse at 0 0,#fff,transparent 70%),#fbf3f0}.header h1{font-size:clamp(30px,4vw,43px);font-weight:730;letter-spacing:-.05em;margin:18px 0 13px;line-height:1.13}.header p{font-size:13px;line-height:1.9;color:#806b76}.header :global(.back-link){font-size:11px;color:var(--primary);margin:0}.grid{gap:22px;align-items:stretch}.grid>article{height:100%}.manager{display:grid;grid-template-columns:minmax(0,1fr) 300px;align-items:start;gap:26px}.form{padding:29px;border:1px solid #ece1e6;border-radius:20px;background:#fff;gap:23px;max-width:none}.form h2{font-size:21px;letter-spacing:-.04em;display:flex;align-items:center;gap:9px}.form h2 svg{color:var(--primary)}.form label{font-size:12px;color:#664e5d;gap:10px;font-weight:550}.form :is(input,select,textarea){border:1px solid #e4d7df;border-radius:9px;background:#fff;outline:0;font-size:13px;padding:13px;line-height:1.6;transition:border-color .2s,box-shadow .2s}.form :is(input,select,textarea):focus{border-color:var(--primary);box-shadow:0 0 0 3px #c8102e0a}.form textarea{min-height:190px;line-height:1.9}.form button{min-height:47px;font-size:12px;display:flex;align-items:center;gap:9px}.help{font-size:12px;color:#826c79;line-height:1.9}.tips{position:sticky;top:126px;border:1px solid #eee0e6;border-radius:20px;padding:26px;background:#fbf6f3}.tips>span{display:grid;place-items:center;width:47px;height:47px;border-radius:14px;background:#fff;color:var(--primary);border:1px solid #ebd4dd;margin-bottom:21px;transform:rotate(5deg)}.tips h2{font-size:21px;letter-spacing:-.04em;line-height:1.25}.tips p{font-size:12px;color:#826b77;line-height:1.9;margin:14px 0}.tips ul{display:grid;gap:16px;list-style:none;margin-top:23px}.tips li{display:flex;align-items:flex-start;gap:9px;font-size:12px;line-height:1.7;color:#715661}.tips li svg{color:var(--primary);flex:none;margin-top:2px}.tips>a{display:inline-flex;align-items:center;gap:8px;margin-top:23px;font-size:11px;color:var(--primary);min-height:30px}.owned{border-top:1px solid #eee2e7;padding-top:30px;margin-top:40px;gap:18px}.owned h2{font-size:24px;letter-spacing:-.04em}.owned article{padding:22px;border-color:#eadce3;border-radius:15px}.owned h3{font-size:16px;line-height:1.4}.owned p{font-size:12px;color:#8b6e7d;margin-top:9px;line-height:1.7}.owned small{display:inline-block;padding:4px 9px;border-radius:20px;background:#f9edf2;color:var(--primary);font-size:10px;margin-top:9px}.owned button{font-size:11px}.ownedEmpty{padding:28px;border:1px dashed #ddc4d1;border-radius:16px;font-size:13px;color:#806a75;line-height:1.8;background:#fdf9fa}.access{display:grid;justify-items:center;text-align:center;max-width:650px;margin:35px auto;padding:42px;border:1px solid #eadce3;border-radius:24px;background:radial-gradient(ellipse at 50% 0,#fbf0ef,transparent 80%),#fff;gap:22px}.access>span{display:grid;place-items:center;width:70px;height:70px;border:1px solid #ecd5df;background:#fff;border-radius:22px;color:var(--primary);transform:rotate(-5deg)}.access h1{font-size:33px;letter-spacing:-.05em;line-height:1.15}.access p{font-size:13px;color:#826c77;line-height:1.9;max-width:43ch}.access>a{font-size:12px;min-height:46px;display:flex;align-items:center;justify-content:center;gap:9px}.access small{font-size:11px;color:#927884}.notice{padding:17px;border:1px solid #ebd3df;border-radius:12px;margin:0 0 22px;font-size:13px;line-height:1.8}
+@media(max-width:900px){.manager{grid-template-columns:minmax(0,1fr)}.tips{position:static}.tips ul{grid-template-columns:repeat(3,minmax(0,1fr))}.tips p{max-width:70ch}}@media(max-width:680px){.header{padding:24px}.form{padding:24px 21px}.tips ul{grid-template-columns:minmax(0,1fr)}.access{padding:33px 23px;margin:15px 0}.access h1{font-size:29px}.access p{font-size:13px}}
+@media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 680px) { .grid, .detail { grid-template-columns: minmax(0, 1fr); } .page { padding-block: 24px 40px; } .card { padding: 20px; } .form :is(input, textarea, select) { font-size: 16px; } }

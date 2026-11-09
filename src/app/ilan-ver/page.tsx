@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import CategoryOptions from "@/components/CategoryOptions";
 import { Briefcase, Wallet, Tag, AlignLeft, Send, Loader2, ShieldCheck, Code2 } from "lucide-react";
 
 export default function PostJobPage() {
   const { status } = useSession();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     title: "",
-    category: "Yazılım",
+    category: "",
     budget: "",
     skills: "",
     description: "",
@@ -55,7 +58,7 @@ export default function PostJobPage() {
         setSubmitting(false);
         return;
       }
-      window.location.href = `/isler/${data.id}`;
+      router.push(`/isler/${data.id}`);
     } catch {
       setError("Bağlantı hatası. Tekrar deneyin.");
       setSubmitting(false);
@@ -91,16 +94,11 @@ export default function PostJobPage() {
               <label>
                 <Tag size={16} /> Kategori
               </label>
-              <select
+              <select required
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
               >
-                <option value="Yazılım">Yazılım</option>
-                <option value="Tasarım">Tasarım</option>
-                <option value="Pazarlama">Pazarlama</option>
-                <option value="Çeviri">Çeviri</option>
-                <option value="Video">Video</option>
-                <option value="Seslendirme">Seslendirme</option>
+                <CategoryOptions allLabel="Kategori seçin" />
               </select>
             </div>
 

@@ -1,0 +1,33 @@
+@layer theme, base, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) important source(none);
+@source "./team-lanyard-rail.tsx";
+
+@theme inline {
+  --color-background: #fbf6f2;
+  --color-foreground: #291e21;
+  --color-card: #ffffff;
+  --color-card-foreground: #291e21;
+  --color-muted: #f3e8e6;
+  --color-muted-foreground: #766367;
+  --color-border: #e7d7d7;
+  --color-ring: #c8102e;
+  --color-chart-1: #c8102e;
+  --color-chart-2: #a72143;
+  --color-chart-3: #d86271;
+  --color-chart-4: #743142;
+  --color-chart-5: #b65b46;
+}
+
+/* Utilities only: the rest of Frenaw keeps its existing CSS and reset. */
+[data-slot="team-lanyard-rail"] { border-radius: 24px; }
+@layer base {
+  [data-slot="team-lanyard-rail"] *,
+  [data-slot="team-lanyard-rail"] *::before,
+  [data-slot="team-lanyard-rail"] *::after { border-style: solid; border-width: 0; }
+}
+[data-slot="team-lanyard-rail"] button { font: inherit; cursor: pointer; }
+[data-slot="team-lanyard-rail"] h2 { font-weight: 700; font-size: clamp(1.7rem, 4vw, 2.7rem); }
+[data-slot="team-lanyard-rail"] .border { border-width: 1px; }
+[data-slot="team-lanyard-rail"] .border-t { border-top-width: 1px; }
+[data-slot="team-lanyard-rail"] .border-dashed { border-style: dashed; }

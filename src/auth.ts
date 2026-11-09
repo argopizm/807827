@@ -1,34 +1,57 @@
-import NextAuth from "next-auth";
+import { publicNameSql } from "@/lib/public-identity";
+import NextAuth, { type User } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { getDB } from "@/lib/db";
+import { runtimeEnv } from "@/lib/runtime-env";
+import { verifyPassword } from "@/lib/password";
+import { cleanEmail, clientAddress, limitRequests } from "@/lib/request-security";
 
-// Web Crypto PBKDF2 — Cloudflare Workers edge runtime uyumlu
-export async function hashPassword(password: string): Promise<{ hash: string; salt: string }> {
-  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" }, key, 256);
-  const toHex = (b: Uint8Array) => Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
-  return { hash: toHex(new Uint8Array(bits)), salt: toHex(saltBytes) };
+function googleProvider() {
+  const clientId = runtimeEnv("GOOGLE_CLIENT_ID");
+  const clientSecret = runtimeEnv("GOOGLE_CLIENT_SECRET");
+  return clientId && clientSecret ? [Google({ clientId, clientSecret })] : [];
 }
 
-export async function verifyPassword(password: string, hash: string, salt: string): Promise<boolean> {
-  const saltBytes = Uint8Array.from((salt.match(/.{2}/g) ?? []).map((b) => parseInt(b, 16)));
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: saltBytes, iterations: 100000, hash: "SHA-256" }, key, 256);
-  const computed = Array.from(new Uint8Array(bits)).map((x) => x.toString(16).padStart(2, "0")).join("");
-  return computed === hash;
+async function persistGoogleUser(user: User, subject: string): Promise<boolean> {
+  const email = cleanEmail(user.email);
+  if (!email) return false;
+
+  const db = await getDB();
+  if (!db) return false;
+
+  const linked = await db.prepare("SELECT id FROM users WHERE google_subject = ?").bind(subject).first<{ id: string }>();
+  if (linked) {
+    user.id = linked.id;
+    return true;
+  }
+
+  const id = crypto.randomUUID();
+  const username = "kullanici_" + id.replace(/-/g, "").slice(0, 16);
+
+  // An existing password account must prove ownership through its own login before linking.
+  // Legacy Google-only rows can be attached on the first verified Google sign-in.
+  await db.batch([
+    db.prepare(
+      "UPDATE users SET google_subject = ?, email_verified_at = CURRENT_TIMESTAMP WHERE LOWER(email) = ? AND password_hash IS NULL AND google_subject IS NULL",
+    ).bind(subject, email),
+    db.prepare(
+      "INSERT INTO users (id, email, username, full_name, name, avatar_url, image, google_subject, email_verified_at) " +
+      "SELECT ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM users WHERE LOWER(email) = ? OR google_subject = ?)",
+    ).bind(id, email, username, user.name ?? null, user.name ?? null, user.image ?? null, user.image ?? null, subject, email, subject),
+  ]);
+
+  const persisted = await db.prepare("SELECT id FROM users WHERE google_subject = ?").bind(subject).first<{ id: string }>();
+  if (!persisted) return false;
+  user.id = persisted.id;
+  return true;
 }
 
-const FALLBACK_SECRET = "fl-tr-cf-d1-secret-807827-key-2026-prod";
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || FALLBACK_SECRET,
+export const { handlers, auth, signIn, signOut } = NextAuth(() => ({
+  secret: runtimeEnv("AUTH_SECRET") || runtimeEnv("NEXTAUTH_SECRET"),
   trustHost: true,
   providers: [
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
-      ? [Google({ clientId: process.env.GOOGLE_CLIENT_ID, clientSecret: process.env.GOOGLE_CLIENT_SECRET })]
-      : []),
+    ...googleProvider(),
     Credentials({
       id: "credentials",
       name: "E-posta",
@@ -36,25 +59,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "E-posta", type: "email" },
         password: { label: "Şifre", type: "password" },
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-        const email = (credentials.email as string).toLowerCase().trim();
-        const password = credentials.password as string;
+      async authorize(credentials, request) {
+        const email = cleanEmail(credentials.email);
+        const password = credentials.password;
+        if (!email || typeof password !== "string" || !password || password.length > 256) return null;
+        const address = clientAddress(request.headers);
+        if (!limitRequests("login:" + address, 40, 300) || !limitRequests("login:" + address + ":" + email, 8, 300)) return null;
 
         try {
           const db = await getDB();
-          if (!db) {
-            console.error("[authorize] D1 binding (DB) bulunamadı");
-            return null;
-          }
-
+          if (!db) return null;
           const user = await db
             .prepare(
-              `SELECT id, email,
-                      COALESCE(full_name, name) AS display_name,
-                      COALESCE(avatar_url, image) AS display_image,
-                      password_hash, password_salt
-               FROM users WHERE LOWER(email) = ?`
+              "SELECT id, email, " + publicNameSql() + " AS display_name, COALESCE(avatar_url, image) AS display_image, " +
+              "password_hash, password_salt, session_version FROM users WHERE LOWER(email) = ? AND deleted_at IS NULL",
             )
             .bind(email)
             .first<{
@@ -64,20 +82,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               display_image: string | null;
               password_hash: string | null;
               password_salt: string | null;
+              session_version: number;
             }>();
 
-          if (!user || !user.password_hash || !user.password_salt) return null;
-          const valid = await verifyPassword(password, user.password_hash, user.password_salt);
-          if (!valid) return null;
-
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.display_name ?? user.email.split("@")[0],
-            image: user.display_image ?? null,
-          };
-        } catch (e) {
-          console.error("[authorize]", e);
+          if (!user?.password_hash || !user.password_salt) return null;
+          if (!await verifyPassword(password, user.password_hash, user.password_salt)) return null;
+          return { id: user.id, email: user.email, name: user.display_name ?? user.email.split("@")[0], image: user.display_image, sessionVersion: user.session_version };
+        } catch {
+          console.error("E-posta oturumu doğrulanamadı.");
           return null;
         }
       },
@@ -85,44 +97,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async signIn({ user, account }) {
-      if (account?.provider === "google" && user.email) {
-        try {
-          const db = await getDB();
-          if (db) {
-            const email = user.email.toLowerCase().trim();
-            const existing = await db.prepare("SELECT id FROM users WHERE LOWER(email) = ?").bind(email).first<{ id: string }>();
-            if (existing) {
-              user.id = existing.id;
-              await db
-                .prepare("UPDATE users SET full_name = COALESCE(full_name, ?), name = COALESCE(name, ?), avatar_url = COALESCE(avatar_url, ?), image = COALESCE(image, ?) WHERE id = ?")
-                .bind(user.name ?? null, user.name ?? null, user.image ?? null, user.image ?? null, existing.id)
-                .run();
-            } else {
-              const newId = user.id || crypto.randomUUID();
-              const baseUser = email.split("@")[0].replace(/[^a-z0-9]/gi, "_").toLowerCase();
-              const username = `${baseUser}_${Math.floor(Math.random() * 9000 + 1000)}`;
-              user.id = newId;
-              await db
-                .prepare("INSERT INTO users (id, email, username, full_name, name, avatar_url, image) VALUES (?, ?, ?, ?, ?, ?, ?)")
-                .bind(newId, email, username, user.name ?? "", user.name ?? "", user.image ?? "", user.image ?? "")
-                .run();
-            }
-          }
-        } catch (e) {
-          console.error("[signIn google]", e);
-        }
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "google") return true;
+      if (profile?.email_verified !== true || !account.providerAccountId) return false;
+
+      try {
+        return await persistGoogleUser(user, account.providerAccountId);
+      } catch {
+        console.error("Google hesabı kaydedilemedi.");
+        return false;
       }
-      return true;
     },
     async jwt({ token, user }) {
       if (user?.id) token.sub = user.id;
-      return token;
+      if (!token.sub) return null;
+      try {
+        const db = await getDB();
+        if (!db) return null;
+        const current = await db.prepare("SELECT session_version, deleted_at, email, username, " + publicNameSql() + " AS name FROM users WHERE id = ?")
+          .bind(token.sub).first<{ session_version: number; deleted_at: string | null; email: string; username: string | null; name: string | null }>();
+        if (!current || current.deleted_at) return null;
+        if (user?.sessionVersion !== undefined && user.sessionVersion !== current.session_version) return null;
+        if (user) {
+          token.sessionVersion = current.session_version;
+          token.authenticatedAt = Date.now();
+        }
+        if (Number(token.sessionVersion ?? 0) !== current.session_version) return null;
+        token.email = current.email;
+        token.name = current.name;
+        token.username = current.username;
+        return token;
+      } catch {
+        return null;
+      }
     },
     async session({ session, token }) {
-      if (session.user && token?.sub) session.user.id = token.sub;
+      if (session.user && token.sub) session.user.id = token.sub;
+      if (session.user) session.user.username = typeof token.username === "string" ? token.username : null;
+      if (session.user) session.user.authenticatedAt = Number(token.authenticatedAt ?? 0);
       return session;
     },
   },
   pages: { signIn: "/giris", error: "/giris" },
-});
+}));

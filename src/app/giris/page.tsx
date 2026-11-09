@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { signIn } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
+import { getProviders, signIn, useSession } from "next-auth/react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
+
+import styles from "./auth.module.css";
 
 const errorMessages: Record<string, string> = {
   Configuration: "Sunucu yapılandırma hatası. E-posta ile giriş yapmayı deneyin.",
@@ -22,158 +25,131 @@ const GoogleIcon = () => (
   </svg>
 );
 
+function internalCallback(value: string | null): string | undefined {
+  if (!value?.startsWith("/") || value.startsWith("//")) return undefined;
+  try {
+    const url = new URL(value, "https://frenaw.invalid");
+    if (url.origin !== "https://frenaw.invalid" || url.pathname.startsWith("/api/") || url.pathname === "/giris") return undefined;
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return undefined;
+  }
+}
+
 // useSearchParams is wrapped in Suspense below
 function GirisForm() {
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<"giris" | "kayit">("giris");
+  const router = useRouter();
+  const { update } = useSession();
+  const callbackUrl = internalCallback(searchParams.get("callbackUrl"));
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [hideUrlError, setHideUrlError] = useState(false);
+  const mode = searchParams.get("mode") === "kayit" ? "kayit" : "giris";
+  function setMode(next: "giris" | "kayit") { const query = new URLSearchParams(searchParams.toString()); query.set("mode", next); query.delete("error"); query.delete("notice"); router.replace("/giris?" + query.toString(), { scroll: false }); }
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: "error" | "success" | "info"; text: string } | null>(null);
 
   useEffect(() => {
-    const err = searchParams.get("error");
-    if (err) setMsg({ type: "error", text: errorMessages[err] ?? errorMessages.Default });
-  }, [searchParams]);
+    let active = true;
+    getProviders().then((providers) => { if (active) setGoogleEnabled(Boolean(providers?.google)); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const err = hideUrlError ? null : searchParams.get("error");
+  const notices: Record<string, string> = { "account-deleted": "Hesabınız silindi ve oturumlarınız kapatıldı.", "password-changed": "Şifreniz güncellendi. Yeni şifrenizle giriş yapın.", "email-changed": "E-posta adresiniz güncellendi. Yeni adresinizle giriş yapın." };
+  const notice = notices[searchParams.get("notice") ?? ""];
+  const visibleMessage = msg ?? (notice ? { type: "success", text: notice } : null) ?? (err ? { type: "error", text: errorMessages[err] ?? errorMessages.Default } : null);
 
   const handleGoogle = async () => {
     setLoading(true);
     setMsg(null);
-    await signIn("google", { callbackUrl: "/" });
+    setHideUrlError(true);
+    try {
+      await signIn("google", { callbackUrl: callbackUrl ?? "/profilim" });
+    } catch {
+      setMsg({ type: "error", text: "Google girişi şu anda kullanılamıyor." });
+      setLoading(false);
+    }
   };
 
   const handleEmailSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (loading) return;
+    setHideUrlError(true);
     setMsg(null);
     setLoading(true);
-    const form = e.currentTarget;
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
-    const password = (form.elements.namedItem("password") as HTMLInputElement).value;
-    const name = mode === "kayit" ? (form.elements.namedItem("name") as HTMLInputElement)?.value : null;
+    const values = new FormData(e.currentTarget);
+    const email = String(values.get("email") ?? "");
+    const password = String(values.get("password") ?? "");
+    const onboardingUrl = callbackUrl ? "/onboarding?callbackUrl=" + encodeURIComponent(callbackUrl) : "/onboarding";
 
-    if (mode === "kayit") {
-      try {
-        const res = await fetch("/api/register", {
+    try {
+      if (mode === "kayit") {
+        const response = await fetch("/api/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
+          body: JSON.stringify({ name: values.get("name"), display_name: values.get("display_name"), email, password, adult: values.get("adult") === "on" }),
         });
-        const data = await res.json();
-        if (!res.ok) {
+        const data = await response.json();
+        if (!response.ok) {
           setMsg({ type: "error", text: data.error ?? "Kayıt başarısız." });
-          setLoading(false);
           return;
         }
-        setMsg({ type: "success", text: "Kayıt başarılı! Giriş yapılıyor..." });
-        // Otomatik giriş — yeni kullanıcıyı onboarding'e yönlendir
-        const result = await signIn("credentials", { email, password, callbackUrl: "/onboarding", redirect: false });
-        if (result?.error) {
-          setMsg({ type: "info", text: "Kayıt tamam! Şimdi giriş yapın." });
+        const result = await signIn("credentials", { email, password, callbackUrl: onboardingUrl, redirect: false });
+        if (!result || result.error) {
+          setMsg({ type: "info", text: "Kayıt tamamlandı. Şimdi giriş yapabilirsiniz." });
           setMode("giris");
-        } else {
-          window.location.href = result?.url ?? "/onboarding";
+          return;
         }
-      } catch {
-        setMsg({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
+        await update();
+        router.replace(onboardingUrl);
+        router.refresh();
+        return;
       }
-    } else {
-      // Giriş — daha açıklayıcı hata mesajları
-      const result = await signIn("credentials", { email, password, callbackUrl: "/hesabim", redirect: false });
-      if (result?.error) {
-        if (result.error === "CredentialsSignin") {
-          setMsg({ type: "error", text: "E-posta veya şifre hatalı. Google hesabınızla kaydolduysanız Google ile giriş yapın." });
-        } else {
-          setMsg({ type: "error", text: `Giriş başarısız: ${result.error}` });
-        }
-      } else if (result?.url) {
-        window.location.href = result.url;
-      } else {
-        window.location.href = "/hesabim";
+
+      const result = await signIn("credentials", { email, password, callbackUrl: callbackUrl ?? "/profilim", redirect: false });
+      if (!result || result.error) {
+        setMsg({ type: "error", text: result?.error === "CredentialsSignin"
+          ? "E-posta veya şifre hatalı. Sosyal hesapla kaydolduysanız aynı giriş yöntemini kullanın."
+          : "Giriş tamamlanamadı. Daha sonra tekrar deneyin." });
+        return;
       }
+      await update();
+      router.replace(callbackUrl ?? "/profilim");
+      router.refresh();
+    } catch {
+      setMsg({ type: "error", text: "Bağlantı hatası. Tekrar deneyin." });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  return (
-    <div className="auth-page">
-      <div className="auth-glow" />
-      <div className="auth-card glass-card">
-        <div className="auth-logo">
-          <span className="gradient-text">Freelancer</span> Türkiye
-        </div>
-
-        <div className="auth-tabs">
-          <button className={`auth-tab ${mode === "giris" ? "active" : ""}`} onClick={() => { setMode("giris"); setMsg(null); }}>Giriş Yap</button>
-          <button className={`auth-tab ${mode === "kayit" ? "active" : ""}`} onClick={() => { setMode("kayit"); setMsg(null); }}>Kaydol</button>
-          <div className={`auth-tab-indicator ${mode === "kayit" ? "right" : ""}`} />
-        </div>
-
-        {msg && (
-          <div className={`auth-msg ${msg.type}`}>
-            {msg.type === "error" && <AlertCircle size={15} />}
-            {msg.type === "success" && <CheckCircle2 size={15} />}
-            <span>{msg.text}</span>
-          </div>
-        )}
-
-        <button className="google-btn" onClick={handleGoogle} disabled={loading}>
-          <GoogleIcon />
-          {loading ? "Yönlendiriliyor..." : mode === "giris" ? "Google ile Giriş Yap" : "Google ile Kaydol"}
-        </button>
-
-        <div className="auth-divider"><span>veya e-posta ile</span></div>
-
-        <form className="auth-form" onSubmit={handleEmailSubmit}>
-          {mode === "kayit" && (
-            <div className="input-group">
-              <label><User size={14} /> Ad Soyad</label>
-              <input name="name" type="text" placeholder="Adınız Soyadınız" required minLength={2} />
-            </div>
-          )}
-          <div className="input-group">
-            <label><Mail size={14} /> E-posta</label>
-            <input name="email" type="email" placeholder="ornek@email.com" required />
-          </div>
-          <div className="input-group">
-            <label><Lock size={14} /> Şifre</label>
-            <div className="password-wrap">
-              <input name="password" type={show ? "text" : "password"} placeholder={mode === "kayit" ? "En az 8 karakter" : "Şifreniz"} required minLength={mode === "kayit" ? 8 : 1} />
-              <button type="button" className="eye-btn" onClick={() => setShow(!show)}>
-                {show ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-          {mode === "kayit" && (
-            <p className="auth-notice">Kaydolarak <a href="#">Kullanım Şartlarını</a> kabul etmiş olursunuz.</p>
-          )}
-          <button type="submit" className="btn-primary auth-submit" disabled={loading}>
-            {loading
-              ? <><Loader2 className="spin" size={18} /> İşleniyor...</>
-              : <>{mode === "giris" ? "Giriş Yap" : "Hesap Oluştur"} <ArrowRight size={18} /></>}
-          </button>
+  return <div className={styles.page}>
+    <section className={styles.formSide} aria-labelledby="auth-heading">
+      <div className={styles.formWrap} key={mode}>
+        <Link href="/" className={styles.back}><ArrowLeft size={15} /> Ana sayfaya dön</Link>
+        <header className={styles.heading}><span className={styles.eyebrow}>FRENAW’A HOŞ GELDİN</span><h1 id="auth-heading">{mode === "giris" ? "Tekrar hoş geldin." : "Yeni bir başlangıç."}</h1><p>{mode === "giris" ? "Hesabına giriş yap." : "Ücretsiz hesabını oluştur."}</p></header>
+        {visibleMessage && <div role={visibleMessage.type === "error" ? "alert" : "status"} className={styles.message} data-error={visibleMessage.type === "error"}>{visibleMessage.type === "error" ? <AlertCircle size={18}/> : <CheckCircle2 size={18}/>}<span>{visibleMessage.text}</span></div>}
+        <form onSubmit={handleEmailSubmit} className={styles.form}>
+          {mode === "kayit" && <><label htmlFor="register-name">Ad soyad<input id="register-name" name="name" autoComplete="name" placeholder="Adın ve soyadın" required minLength={2} maxLength={100}/></label><label htmlFor="register-display">Kullanıcı adı / marka adı<input id="register-display" name="display_name" autoComplete="nickname" placeholder="Roel Cloud" required minLength={2} maxLength={80}/></label></>}
+          <label htmlFor="login-email">E-posta<input id="login-email" name="email" type="email" autoComplete="email" placeholder="ornek@email.com" required maxLength={254}/></label>
+          <label htmlFor="login-password">Şifre<span className={styles.password}><input id="login-password" aria-label="Şifre" name="password" type={show ? "text" : "password"} autoComplete={mode === "kayit" ? "new-password" : "current-password"} placeholder={mode === "kayit" ? "En az 8 karakter" : "Şifren"} minLength={mode === "kayit" ? 8 : 1} maxLength={256} required/><button type="button" onClick={() => setShow(!show)} aria-label={show ? "Şifreyi gizle" : "Şifreyi göster"}>{show ? <EyeOff size={19}/> : <Eye size={19}/>}</button></span></label>
+          {mode === "kayit" && <label className={styles.consent}><input type="checkbox" name="adult" required/><span>18 yaşını doldurdum ve <Link href="/kullanim-kosullari" target="_blank">kullanım koşullarını</Link> kabul ediyorum. <Link href="/gizlilik" target="_blank">Gizlilik</Link></span></label>}
+          <button className={styles.submit} disabled={loading}>{loading ? <><Loader2 size={19} className="spin"/> İşleniyor…</> : <>{mode === "giris" ? "Giriş yap" : "Hesap oluştur"}<ArrowRight size={18}/></>}</button>
         </form>
-
-        <p className="auth-switch">
-          {mode === "giris"
-            ? <>Hesabın yok mu? <button onClick={() => { setMode("kayit"); setMsg(null); }}>Kaydol</button></>
-            : <>Hesabın var mı? <button onClick={() => { setMode("giris"); setMsg(null); }}>Giriş Yap</button></>}
-        </p>
+        {googleEnabled && <><div className={styles.divider}><span>veya</span></div><button className={styles.google} onClick={handleGoogle} disabled={loading}><GoogleIcon/> Google ile devam et</button></>}
+        <p className={styles.switch}>{mode === "giris" ? "Henüz hesabın yok mu?" : "Zaten hesabın var mı?"} <button type="button" disabled={loading} onClick={() => { setMode(mode === "giris" ? "kayit" : "giris"); setMsg(null); setHideUrlError(true); }}>{mode === "giris" ? "Kaydol" : "Giriş yap"}</button></p>
       </div>
-    </div>
-  );
+    </section>
+    <aside className={styles.scene} aria-label="Frenaw ile birlikte üret">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/images/frenaw-hero.webp" alt="Bir proje üzerinde fikirlerini paylaşan çalışma arkadaşları" width={1280} height={1280} fetchPriority="high"/>
+      <div className={styles.sceneShade}/><div className={styles.orbit} aria-hidden="true"/><div className={styles.sceneCopy}><span>FİKRİNDEN FAZLASI VAR.</span><h2 key={mode}>{mode === "giris" ? "Güzel işler birlikte çıkar." : "Bir fikrin var. Birlikte büyütelim."}</h2><p>Doğru insanlarla tanış. Birlikte üret.</p><div className={styles.sceneFoot}><span>Frenaw</span><span>%0 platform komisyonu</span></div></div>
+    </aside>
+  </div>;
 }
 
-// useSearchParams() requires Suspense boundary in Next.js static generation
 export default function GirisPage() {
-  return (
-    <Suspense fallback={
-      <div className="auth-page">
-        <div className="auth-glow" />
-        <div className="auth-card glass-card" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "400px" }}>
-          <Loader2 className="spin" size={32} style={{ color: "var(--primary)" }} />
-        </div>
-      </div>
-    }>
-      <GirisForm />
-    </Suspense>
-  );
+  return <Suspense fallback={<div className={styles.loading}><Loader2 className="spin" size={28}/></div>}><GirisForm/></Suspense>;
 }

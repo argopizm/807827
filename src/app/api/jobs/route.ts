@@ -1,52 +1,41 @@
-export const runtime = "edge";
-
-import { auth } from "@/auth";
-import { getDB } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { normalizeCategory } from "@/lib/categories";
+import { getDB } from "@/lib/db";
+import { canPublish, emailVerificationError } from "@/lib/email-verification";
+import { cleanSkills, cleanText, limitRequests, rateLimitResponse, readJson } from "@/lib/request-security";
+
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "İlan vermek için giriş yapmanız gerekiyor." }, { status: 401 });
-  }
+  if (!session?.user?.id) return NextResponse.json({ error: "İlan vermek için giriş yapın." }, { status: 401 });
 
-  const body = await request.json().catch(() => null);
-  const { title, category, budget, description, skills } = body ?? {};
-
-  if (!title?.trim() || !description?.trim() || !budget?.trim()) {
-    return NextResponse.json({ error: "Başlık, bütçe ve açıklama alanları zorunludur." }, { status: 400 });
+  const body = await readJson(request);
+  const title = cleanText(body?.title);
+  const category = normalizeCategory(cleanText(body?.category) || "Genel");
+  const description = cleanText(body?.description);
+  const budget = cleanText(body?.budget);
+  const skills = cleanSkills(body?.skills);
+  if (!title || title.length > 140 || !description || description.length > 8000 || !budget || budget.length > 100 || !category) {
+    return NextResponse.json({ error: "Geçerli bir kategori, başlık, bütçe ve açıklama girin." }, { status: 400 });
   }
+  if (!limitRequests("job:" + session.user.id, 8, 300)) return rateLimitResponse(300);
 
   try {
     const db = await getDB();
-    if (!db) return NextResponse.json({ error: "Veritabanı bağlantısı kurulamadı." }, { status: 500 });
+    if (!db) return NextResponse.json({ error: "İlan verme şu anda kullanılamıyor." }, { status: 503 });
+    if (!await canPublish(db, session.user.id)) return NextResponse.json({ error: emailVerificationError }, { status: 403 });
 
     const id = crypto.randomUUID();
-    const skillArr = Array.isArray(skills)
-      ? skills
-      : typeof skills === "string" && skills.trim()
-        ? skills.split(",").map((s: string) => s.trim()).filter(Boolean)
-        : [];
+    const result = await db.prepare(
+      "INSERT INTO jobs (id, client_id, title, description, category, budget_range, skills, status) " +
+      "SELECT ?, id, ?, ?, ?, ?, ?, 'open' FROM users WHERE id = ? AND user_type = 'employer'",
+    ).bind(id, title, description, category, budget, JSON.stringify(skills), session.user.id).run();
+    if (!result.meta?.changes) return NextResponse.json({ error: "İlan vermek için işveren hesabı kullanın." }, { status: 403 });
 
-    await db
-      .prepare(
-        `INSERT INTO jobs (id, client_id, title, description, category, budget_range, skills, status, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'open', CURRENT_TIMESTAMP)`
-      )
-      .bind(
-        id,
-        session.user.id,
-        String(title).trim(),
-        String(description).trim(),
-        String(category || "Genel").trim(),
-        String(budget).trim(),
-        JSON.stringify(skillArr)
-      )
-      .run();
-
-    return NextResponse.json({ success: true, id });
-  } catch (e) {
-    console.error("[POST /api/jobs]", e);
-    return NextResponse.json({ error: "İlan kaydedilirken hata oluştu: " + String(e) }, { status: 500 });
+    return NextResponse.json({ success: true, id }, { status: 201 });
+  } catch {
+    console.error("İlan kaydedilemedi.");
+    return NextResponse.json({ error: "İlan kaydedilemedi. Daha sonra tekrar deneyin." }, { status: 500 });
   }
 }

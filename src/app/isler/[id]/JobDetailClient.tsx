@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import CategoryImage from "@/components/CategoryImage";
+import { getCategory } from "@/lib/categories";
+import styles from "@/components/ProjectDetail.module.css";
+import ProposalComposer from "@/components/ProposalComposer";
 import { useSession } from "next-auth/react";
 import {
-  Calendar, Wallet, User, CheckCircle2,
-  Handshake, MessageSquare, ArrowLeft, LogIn, Loader2
+  Calendar, Wallet, User,
+  Handshake, MessageSquare, ArrowLeft, LogIn, Loader2, ArrowUpRight, FileText, ShieldCheck, Sparkles, ClipboardCheck
 } from "lucide-react";
 
 interface Job {
@@ -12,7 +16,7 @@ interface Job {
   title: string;
   client: string;
   client_id: string;
-  client_username: string;
+  client_username: string | null;
   client_jobs: number;
   client_rating: number;
   budget: string;
@@ -22,180 +26,47 @@ interface Job {
   description: string;
 }
 
-export default function JobDetailClient({ job }: { id: string; job: Job }) {
+export default function JobDetailClient({ job }: { job: Job }) {
   const { data: session, status } = useSession();
-  const [hasApplied, setHasApplied] = useState(false);
-  const [applying, setApplying] = useState(false);
-  const [applyError, setApplyError] = useState<string | null>(null);
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "JobPosting",
-    "title": job.title,
-    "description": job.description,
-    "datePosted": job.created_at,
-    "hiringOrganization": {
-      "@type": "Organization",
-      "name": job.client,
-    },
-    "jobLocationType": "TELECOMMUTE",
-  };
-
-  const handleHandshake = async () => {
-    if (!session) return;
-    setApplying(true);
-    setApplyError(null);
-
-    try {
-      const res = await fetch("/api/handshake", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jobId: job.id, clientId: job.client_id }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setHasApplied(true);
-      } else {
-        setApplyError(data.error || "Bir hata oluştu. Tekrar deneyin.");
-      }
-    } catch {
-      setApplyError("Bağlantı hatası. İnternet bağlantınızı kontrol edin.");
-    } finally {
-      setApplying(false);
-    }
-  };
-
   const isOwnJob = session?.user?.id === job.client_id;
+  const isOpen = job.status === "open";
+  const chatHref = "/mesajlar?to=" + encodeURIComponent(job.client_id);
 
-  return (
-    <div className="job-detail container">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <a href="/ilanlar" className="back-link">
-        <ArrowLeft size={16} /> İlanlara Geri Dön
-      </a>
-
-      <div className="detail-grid">
-        <div className="main-content">
-          <div className="glass-card job-header-card">
-            <div className="job-meta-top">
-              <span className="category-badge">{job.category}</span>
-              <span className="date-badge"><Calendar size={14} /> {job.created_at}</span>
-              <span className={`status-badge status-${job.status}`}>
-                {job.status === "open" ? "Açık" : job.status === "active" ? "Aktif" : "Kapalı"}
-              </span>
-            </div>
-            <h1 className="job-title">{job.title}</h1>
-            <div className="job-stats">
-              <div className="stat">
-                <Wallet size={20} className="icon" />
-                <div>
-                  <span>Bütçe</span>
-                  <strong>{job.budget}</strong>
-                </div>
-              </div>
-              <div className="stat">
-                <User size={20} className="icon" />
-                <div>
-                  <span>İş Veren</span>
-                  <strong>{job.client}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <section className="glass-card description-card">
-            <h2>İş Detayları</h2>
-            <div className="description-text">
-              {job.description.split("\n").map((line, i) => (
-                <p key={i}>{line}</p>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        <aside className="actions-sidebar">
-          <div className="glass-card action-card">
-            <h3>Bu İşle İlgileniyor musunuz?</h3>
-
-            {status === "unauthenticated" && (
-              <>
-                <p>
-                  El sıkışma talebinde bulunmak için <strong>giriş yapmanız</strong> gerekiyor.
-                </p>
-                <a href="/giris" className="btn-primary handshake-btn" style={{ textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                  <LogIn size={20} /> Giriş Yap
-                </a>
-              </>
-            )}
-
-            {status === "authenticated" && isOwnJob && (
-              <div className="own-job-notice">
-                <CheckCircle2 size={20} color="var(--primary)" />
-                <p>Bu ilan size ait. Başkalarından teklif bekliyorsunuz.</p>
-              </div>
-            )}
-
-            {status === "authenticated" && !isOwnJob && (
-              <>
-                <p>
-                  Müşteriyle dışarıda (WhatsApp/Discord) anlaştıysanız, platform üzerinde
-                  &quot;El Sıkışarak&quot; süreci başlatabilirsiniz.
-                </p>
-
-                {applyError && (
-                  <p className="error-msg" style={{ marginBottom: "12px" }}>{applyError}</p>
-                )}
-
-                {!hasApplied ? (
-                  <button
-                    className="btn-primary handshake-btn"
-                    onClick={handleHandshake}
-                    disabled={applying}
-                  >
-                    {applying ? <><Loader2 className="spin" size={20} /> Gönderiliyor...</> : <><Handshake size={20} /> El Sıkışmayı Başlat</>}
-                  </button>
-                ) : (
-                  <div className="handshake-success">
-                    <CheckCircle2 size={32} color="var(--success)" />
-                    <p>El sıkışma talebi gönderildi! Karşı taraf onayladığında iş &quot;Aktif&quot; sayılacaktır.</p>
-                  </div>
-                )}
-              </>
-            )}
-
-            {status === "loading" && (
-              <div className="loading-state" style={{ textAlign: "center", padding: "20px" }}>
-                <Loader2 className="spin" size={24} />
-              </div>
-            )}
-
-            <hr className="divider" />
-
-            <div className="safety-tip">
-              <MessageSquare size={16} />
-              <span>Ödeme platform dışındadır. Güvenliğiniz için iş bitmeden tam ödeme yapmayın/almayın.</span>
-            </div>
-          </div>
-
-          <div className="glass-card client-info-card">
-            <h3>İşveren Hakkında</h3>
-            <div className="client-stats">
-              <div className="c-stat">
-                <strong>{job.client_jobs}</strong>
-                <span>Tamamlanan İş</span>
-              </div>
-              <div className="c-stat">
-                <strong>{job.client_rating > 0 ? job.client_rating.toFixed(1).replace(".", ",") : "–"}</strong>
-                <span>Puan</span>
-              </div>
-            </div>
-            <a href={`/profil/${job.client_username}`} className="view-profile">Profili Görüntüle</a>
-          </div>
-        </aside>
+  const group = getCategory(job.category);
+  const loginHref = "/giris?callbackUrl=" + encodeURIComponent("/isler/" + job.id);
+  const statusLabel = isOpen ? "Teklife açık" : job.status === "active" || job.status === "in_progress" ? "Devam ediyor" : job.status === "completed" ? "Tamamlandı" : "Kapalı";
+  return <div className={"container " + styles.page}>
+    <Link href="/ilanlar" className={styles.back}><ArrowLeft size={15}/> Tüm proje ilanları</Link>
+    <header className={styles.hero}>
+      <div className={styles.heroCopy}>
+        <div className={styles.meta}><span className={styles.category}>{job.category}</span><span><Calendar size={13}/>{job.created_at}</span><span className={styles.status}>{statusLabel}</span></div>
+        <h1>{job.title}</h1>
+        <div className={styles.byline}><span className={styles.avatar} aria-hidden="true">{job.client.slice(0,1).toLocaleUpperCase("tr-TR")}</span><span><strong>{job.client}</strong> tarafından yayınlandı.</span></div>
       </div>
+      <div className={styles.heroVisual} aria-hidden="true"><CategoryImage slug={group?.slug ?? "is-yonetim"} title="" eager/><div className={styles.visualNote}><Sparkles size={23}/><span>İyi işler, doğru insanlarla başlar.</span></div></div>
+    </header>
+    <div className={styles.grid}>
+      <div className={styles.main}>
+        <section className={styles.card} aria-labelledby="project-detail-title">
+          <div className={styles.heading}><span><FileText size={19}/></span><h2 id="project-detail-title">Projenin detayları</h2></div>
+          <div className={styles.facts}><div className={styles.fact}><Wallet size={22}/><div><small>PROJE BÜTÇESİ</small><strong>{job.budget}</strong></div></div><div className={styles.fact}><User size={22}/><div><small>İŞVEREN</small><strong>{job.client}</strong></div></div></div>
+          <div className={styles.body}>{job.description.trim() ? job.description.split("\n").map((line,i)=><p key={i}>{line || "\u00a0"}</p>) : <p>İlan sahibi henüz ayrıntılı açıklama eklememiş. Kapsamı görüşme sırasında netleştirebilirsin.</p>}</div>
+        </section>
+        <section className={styles.guide} aria-labelledby="project-guide-title"><ClipboardCheck size={39}/><div><h2 id="project-guide-title">Aynı beklentide buluşun.</h2><p>Başlamadan önce teslim listesini, çalışma takvimini ve revizyon kapsamını birlikte netleştirin. Anlaşmanın ayrıntılarını yazılı tutun.</p><Link href="/rehber/freelance-proje-briefi">İyi bir proje briefi nasıl hazırlanır? <ArrowUpRight size={15}/></Link></div></section>
+      </div>
+      <aside className={styles.sidebar}>
+        <section className={styles.card + " " + styles.action} aria-labelledby="project-action-title">
+          <span className={styles.actionIcon}><Handshake size={25}/></span>
+          <h2 id="project-action-title">{isOwnJob ? "Projen burada yayında." : isOpen ? "Bu işte sen de varsın." : "Projenin son durumu"}</h2>
+          {status === "loading" ? <p role="status"><Loader2 className="spin" size={19}/> Hesabın kontrol ediliyor…</p> : isOwnJob ? <><p>İlanını ve gelen teklifleri hesabından takip edebilirsin.</p><div className={styles.buttons}><Link href="/hesabim" className={styles.button}>Teklifleri yönet <ArrowUpRight size={16}/></Link></div></> : !isOpen ? <><p>Bu proje şu anda yeni teklif almıyor. Uzmanlığına uygun diğer açık ilanları keşfedebilirsin.</p><div className={styles.buttons}><Link href="/ilanlar" className={styles.button}>Açık projeleri keşfet <ArrowUpRight size={16}/></Link></div></> : status === "unauthenticated" ? <><p>İlan sahibini tanı, projenin kapsamını konuş ve kendi teklifinle iş birliğine katıl.</p><div className={styles.buttons}><Link href={loginHref} className={styles.button}><LogIn size={17}/> Giriş yap ve devam et</Link></div></> : <>
+            <p>Uzmanlığını paylaş. İlan sahibine mesaj gönder veya bu proje için teklif ver.</p>
+            <ProposalComposer jobId={job.id} title={job.title}/>
+            <div className={styles.buttons}><Link href={chatHref} className={styles.button + " " + styles.secondary}><MessageSquare size={17}/> İlan sahibine mesaj gönder</Link></div>
+          </>}
+          <div className={styles.safety}><ShieldCheck size={16}/><span>Frenaw ödeme aracılığı yapmaz. Ücreti ve teslim koşullarını birlikte belirleyin; iş tamamlanmadan tam ödeme yapmaktan kaçının.</span></div>
+        </section>
+        <section className={styles.card} aria-label="İşveren hakkında"><div className={styles.client}><span className={styles.avatar} aria-hidden="true">{job.client.slice(0,1).toLocaleUpperCase("tr-TR")}</span><div><small>İŞVERENİ TANI</small><strong>{job.client}</strong></div></div><div className={styles.clientStats}><div><strong>{job.client_jobs}</strong><span>Tamamlanan iş</span></div><div><strong>{job.client_rating > 0 ? job.client_rating.toFixed(1).replace(".",",") : "—"}</strong><span>Değerlendirme puanı</span></div></div>{job.client_username && <Link href={"/profil/"+encodeURIComponent(job.client_username)} className={styles.profileLink}>Profili keşfet <ArrowUpRight size={16}/></Link>}</section>
+      </aside>
     </div>
-  );
+  </div>;
 }

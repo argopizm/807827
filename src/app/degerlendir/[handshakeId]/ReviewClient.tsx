@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Star, MessageSquare, Send, CheckCircle2, Loader2 } from "lucide-react";
 
 export default function ReviewClient({ handshakeId }: { handshakeId: string }) {
@@ -46,7 +47,7 @@ export default function ReviewClient({ handshakeId }: { handshakeId: string }) {
             <CheckCircle2 size={64} color="var(--success)" />
             <h1>Değerlendirmeniz Kaydedildi</h1>
             <p>Geri bildiriminiz platform güvenliği için çok değerlidir. Teşekkürler!</p>
-            <a href="/" className="btn-primary">Ana Sayfaya Dön</a>
+            <Link href="/" className="btn-primary">Ana sayfaya dön</Link>
           </div>
         ) : (
           <>
@@ -65,6 +66,8 @@ export default function ReviewClient({ handshakeId }: { handshakeId: string }) {
                     <button
                       key={star}
                       type="button"
+                      aria-label={star + ' puan'}
+                      aria-pressed={rating === star}
                       onClick={() => setRating(star)}
                       onMouseEnter={() => setHover(star)}
                       onMouseLeave={() => setHover(0)}
@@ -84,9 +87,11 @@ export default function ReviewClient({ handshakeId }: { handshakeId: string }) {
               </div>
 
               <div className="input-group">
-                <label><MessageSquare size={16} /> Yorumunuz</label>
+                <label htmlFor="review-comment"><MessageSquare size={16} /> Yorumunuz</label>
                 <textarea
                   placeholder="İletişim ve iş kalitesi nasıldı?"
+                  id="review-comment"
+                  maxLength={1500}
                   rows={5}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}

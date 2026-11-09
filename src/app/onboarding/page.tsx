@@ -1,26 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Code2, Briefcase, ArrowRight, Loader2, ShieldCheck } from "lucide-react";
 
 export default function OnboardingPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const [selected, setSelected] = useState<"freelancer" | "employer" | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (status === "loading") {
+  useEffect(() => {
+    if (status === "unauthenticated") router.replace("/giris?callbackUrl=/onboarding");
+  }, [router, status]);
+
+  if (status !== "authenticated") {
     return (
       <div className="onb-page">
         <Loader2 className="spin" size={40} style={{ color: "var(--primary)" }} />
       </div>
     );
-  }
-
-  if (status === "unauthenticated") {
-    window.location.href = "/giris";
-    return null;
   }
 
   const handleContinue = async () => {
@@ -33,8 +34,17 @@ export default function OnboardingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userType: selected }),
       });
-      if (!res.ok) throw new Error("Failed");
-      window.location.href = "/hesabim";
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Hesap türü kaydedilemedi.");
+        setLoading(false);
+        return;
+      }
+      const requested = new URLSearchParams(window.location.search).get("callbackUrl");
+      const next = requested?.startsWith("/") && !requested.startsWith("//")
+        ? new URL(requested, window.location.origin) : null;
+      router.replace(next?.origin === window.location.origin && !/^\/(?:api(?:\/|$)|giris(?:\/|$)|onboarding(?:\/|$))/.test(next.pathname)
+        ? next.pathname + next.search + next.hash : "/hesabim");
     } catch {
       setError("Bir hata oluştu. Tekrar deneyin.");
       setLoading(false);
@@ -44,9 +54,9 @@ export default function OnboardingPage() {
   return (
     <div className="onb-page">
       <div className="onb-card glass-card">
-        <div className="onb-logo"><span className="gradient-text">Freelancer</span> Türkiye</div>
+        <div className="onb-logo"><span className="gradient-text">Frenaw</span></div>
         <div className="onb-welcome">
-          <h1>Hoş Geldiniz, <span className="gradient-text">{session?.user?.name?.split(" ")[0]}</span></h1>
+          <h1>Hoş Geldiniz, <span className="gradient-text">{session?.user?.name}</span></h1>
           <p>Platforma nasıl katılmak istiyorsunuz? Panelinizi sizin için özelleştirelim.</p>
         </div>
 
@@ -96,7 +106,7 @@ export default function OnboardingPage() {
             : <>Devam Et <ArrowRight size={18} /></>}
         </button>
 
-        <p className="onb-note">İstediğiniz zaman ayarlardan değiştirebilirsiniz.</p>
+        <p className="onb-note">Hesap türünüz, kullanabileceğiniz ilan ve teklif işlemlerini belirler.</p>
       </div>
     </div>
   );

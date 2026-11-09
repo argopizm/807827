@@ -1,50 +1,40 @@
-export const runtime = "edge";
+import Link from "next/link";
+import MarketplaceCard from "@/components/MarketplaceCard";
+import BrowseLayout from "@/components/BrowseLayout";
+import { browseJobs, browseParams, type SearchParams } from "@/lib/browse";
+import { publicMetadata } from "@/lib/seo";
 
-import { getDB, formatRelativeDate } from "@/lib/db";
-import JobListClient, { type Job } from "./JobListClient";
 
-export default async function JobBoardPage({ searchParams }: { searchParams: Promise<{ q?: string; kategori?: string }> }) {
-  const sp = await searchParams;
-  let dbJobs: Job[] = [];
+const path = "/ilanlar";
+const title = "Freelance Proje İlanları";
+const description = "Türkiye’deki freelance proje ilanlarını keşfedin. Uzmanlık alanına göre arayın ve ilan sahibine doğrudan teklif verin.";
 
-  try {
-    const db = await getDB();
-    if (db) {
-      const { results } = await db
-        .prepare(
-          `SELECT j.id, j.title, j.description, j.category, j.budget_range, j.skills, j.created_at,
-                  COALESCE(u.full_name, u.name, u.username, 'İşveren') AS client_name,
-                  (SELECT COUNT(*) FROM handshakes h WHERE h.job_id = j.id) AS proposals
-           FROM jobs j
-           LEFT JOIN users u ON j.client_id = u.id
-           WHERE j.status = 'open'
-           ORDER BY j.created_at DESC`
-        )
-        .all<Record<string, unknown>>();
+async function getFilters(searchParams: Promise<SearchParams>) {
+  const filters = browseParams(await searchParams);
+  return { ...filters, sort: filters.sort === "butce" ? "butce" : "" };
+}
 
-      dbJobs = (results ?? []).map((j) => {
-        let skills: string[] = [];
-        try {
-          skills = JSON.parse(String(j.skills ?? "[]"));
-        } catch {
-          skills = [];
-        }
-        return {
-          id: String(j.id),
-          title: String(j.title ?? ""),
-          client: String(j.client_name ?? "İşveren"),
-          budget: String(j.budget_range ?? "Belirtilmemiş"),
-          category: String(j.category ?? "Genel"),
-          description: String(j.description ?? ""),
-          time: formatRelativeDate(j.created_at as string | null),
-          proposals: Number(j.proposals ?? 0),
-          skills: Array.isArray(skills) ? skills : [],
-        };
-      });
-    }
-  } catch (e) {
-    console.error("[ilanlar]", e);
-  }
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const filters = await getFilters(searchParams);
+  return publicMetadata({ title, description, path, index: !filters.q && !filters.category && !filters.sort && filters.page === 1 });
+}
 
-  return <JobListClient jobs={dbJobs} initialQuery={sp.q ?? ""} initialCategory={sp.kategori ?? "Tümü"} />;
+export default async function JobBoardPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const filters = await getFilters(searchParams);
+  const { items, next, available } = await browseJobs(filters);
+  return (
+    <BrowseLayout
+      title={title} description={description} path={path} filters={filters}
+      count={items.length} next={next} available={available}
+      sorts={[{ value: "", title: "En yeni" }, { value: "butce", title: "Bütçe yüksekten düşüğe" }]}
+      action={<Link href="/ilan-ver" className="btn-primary">Ücretsiz ilan ver</Link>}
+    >
+      {items.map((job) => {
+        const href = "/isler/" + encodeURIComponent(job.id);
+        return (
+          <MarketplaceCard key={job.id} href={href} title={job.title} category={job.category} budget={job.budget} description={job.description} person={job.client} time={job.time} proposals={job.proposals} skills={job.skills}/>
+        );
+      })}
+    </BrowseLayout>
+  );
 }

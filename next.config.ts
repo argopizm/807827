@@ -1,23 +1,19 @@
 import type { NextConfig } from "next";
-import { setupDevPlatform } from "@cloudflare/next-on-pages/next-dev";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 if (process.env.NODE_ENV === "development") {
-  setupDevPlatform().catch(() => {});
+  const state = process.env.FRENAW_LOCAL_D1_STATE;
+  void initOpenNextCloudflareForDev({
+    remoteBindings: false,
+    ...(state ? { persist: { path: state }, envFiles: [] } : {}),
+  }).catch(() => console.error("Yerel Cloudflare bağlayıcıları başlatılamadı."));
 }
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "async_hooks": "node:async_hooks",
-    };
-    return config;
+  output: "standalone",
+  poweredByHeader: false,
+  async redirects() {
+    return [{ source: "/:path*", has: [{ type: "host", value: "www.frenaw.com" }], destination: "https://frenaw.com/:path*", permanent: true }];
   },
 };
 

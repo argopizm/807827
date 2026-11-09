@@ -1,70 +1,58 @@
-export const runtime = "edge";
+import Image from "next/image";
+import { Star } from "lucide-react";
+import BrowseLayout from "@/components/BrowseLayout";
+import { browseFreelancers, browseParams, type SearchParams } from "@/lib/browse";
+import { publicMetadata } from "@/lib/seo";
 
-import { getDB } from "@/lib/db";
-import FreelancerListClient from "./FreelancerListClient";
 
-interface DBUser {
-  id: string;
-  email: string;
-  full_name: string | null;
-  username: string | null;
-  title: string | null;
-  category: string | null;
-  skills: string | null;
-  avatar_url: string | null;
-  bio: string | null;
-  tc_verified: number;
-  trust_badge: number;
-  total_jobs_completed: number;
-  rating_avg: number;
+const path = "/profil";
+const title = "Freelancer Bul";
+const description = "Frenaw’da uzmanlık, yetenek ve geçmiş proje değerlendirmelerine göre Türkiye’deki freelancer profillerini inceleyin.";
+
+async function getFilters(searchParams: Promise<SearchParams>) {
+  const filters = browseParams(await searchParams);
+  return { ...filters, sort: filters.sort === "is" ? "is" : "" };
 }
 
-async function getFreelancers() {
-  try {
-    const db = await getDB();
-    if (!db) return [];
-    const { results } = await db
-      .prepare(
-        `SELECT id, email, COALESCE(full_name, name) AS full_name, username, title, category, skills,
-                COALESCE(avatar_url, image) AS avatar_url, bio,
-                tc_verified, trust_badge, total_jobs_completed, rating_avg
-         FROM users
-         WHERE user_type = 'freelancer' OR user_type IS NULL
-         ORDER BY rating_avg DESC, total_jobs_completed DESC
-         LIMIT 100`
-      )
-      .all<DBUser>();
-    return results ?? [];
-  } catch {
-    return [];
-  }
+export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const filters = await getFilters(searchParams);
+  return publicMetadata({ title, description, path, index: !filters.q && !filters.category && !filters.sort && filters.page === 1 });
 }
 
-export default async function FreelancerBulPage() {
-  const dbFreelancers = await getFreelancers();
-  const freelancers = dbFreelancers.map((u) => {
-    let parsedSkills: string[] = [];
-    try {
-      parsedSkills = JSON.parse(u.skills ?? "[]");
-    } catch {
-      parsedSkills = [];
-    }
-    return {
-      id: u.id,
-      username: u.username ?? u.email.split("@")[0],
-      full_name: u.full_name ?? "Kullanıcı",
-      title: u.title ?? undefined,
-      email: u.email,
-      avatar_url: u.avatar_url ?? "",
-      bio: u.bio ?? "",
-      tc_verified: u.tc_verified ?? 0,
-      trust_badge: u.trust_badge ?? 0,
-      total_jobs_completed: u.total_jobs_completed ?? 0,
-      rating_avg: u.rating_avg ?? 0,
-      skills: Array.isArray(parsedSkills) ? parsedSkills : [],
-      category: u.category || "Genel",
-    };
-  });
+function initials(name: string) {
+  return name.split(" ").filter(Boolean).slice(0, 2).map((word) => word[0]).join("").toLocaleUpperCase("tr-TR");
+}
 
-  return <FreelancerListClient freelancers={freelancers} />;
+export default async function FreelancerListPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const filters = await getFilters(searchParams);
+  const { items, next, available } = await browseFreelancers(filters);
+  return (
+    <BrowseLayout
+      title={title} description={description} path={path} filters={filters}
+      count={items.length} next={next} available={available}
+      sorts={[{ value: "", title: "En yüksek puan" }, { value: "is", title: "En çok tamamlanan iş" }]}
+    >
+      {items.map((profile) => {
+        const href = "/profil/" + encodeURIComponent(profile.username);
+        return (
+          <article key={profile.id} className="fr-row">
+            <span className="ava lg" aria-hidden="true">
+              {profile.avatar ? <Image unoptimized src={profile.avatar} alt="" width={64} height={64} loading="lazy" referrerPolicy="no-referrer" /> : initials(profile.name)}
+            </span>
+            <div>
+              <div className="fr-name"><h2><a href={href}>{profile.name}</a></h2></div>
+              <div className="fr-title">{profile.title}</div>
+              {profile.bio && <p className="fr-bio">{profile.bio}</p>}
+              {profile.skills.length > 0 && <div className="tags">{profile.skills.map((skill) => <span key={skill} className="tag">{skill}</span>)}</div>}
+            </div>
+            <div className="fr-side">
+              <span className="fr-rating"><Star size={15} fill="currentColor" aria-hidden="true" />{profile.rating > 0 ? profile.rating.toFixed(1).replace(".", ",") : "Yeni"}</span>
+              <small>{profile.completed} tamamlanan iş</small>
+              <a href={href} className="btn-secondary">Profili incele</a>
+            </div>
+          </article>
+        );
+      })}
+    </BrowseLayout>
+  );
 }

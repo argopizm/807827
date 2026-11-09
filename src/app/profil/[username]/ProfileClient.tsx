@@ -1,17 +1,19 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
-import { Star, ShieldCheck, BadgeCheck, ArrowLeft, ArrowUpRight, Copy, Check, MapPin } from "lucide-react";
+import "./profile-refresh.css";
+import { Star, ArrowLeft, ArrowUpRight, Copy, Check, MessageSquare, Pencil, ArrowRight } from "lucide-react";
 
 export interface ProfileData {
+  id: string;
   username: string;
   name: string;
   title?: string;
   category?: string;
   bio: string;
   avatar: string;
-  tc_verified: boolean;
-  trust_badge: boolean;
   rating: number;
   jobs_done: number;
   user_type: string;
@@ -20,6 +22,7 @@ export interface ProfileData {
 }
 
 export interface ReviewItem {
+  id: string;
   author: string;
   project: string;
   rating: number;
@@ -56,71 +59,58 @@ function DiscordIcon() {
   );
 }
 
-export default function ProfileClient({ profile, reviews }: { profile: ProfileData; reviews: ReviewItem[] }) {
+export default function ProfileClient({ profile, reviews, owner = false, preview = false }: { profile: ProfileData; reviews: ReviewItem[]; owner?: boolean; preview?: boolean }) {
+  const NameHeading = preview ? "h3" : "h1";
   const [copied, setCopied] = useState(false);
   const hasContact = profile.links.whatsapp || profile.links.portfolio || profile.links.discord;
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    name: profile.name,
-    description: profile.bio,
-    image: profile.avatar || undefined,
-    url: `https://807827.pages.dev/profil/${profile.username}`,
-  };
-
-  const copyDiscord = () => {
-    if (!profile.links.discord) return;
-    navigator.clipboard?.writeText(profile.links.discord);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const copyDiscord = async () => {
+    if (!profile.links.discord || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(profile.links.discord);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
-    <div className="pr-page">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+    <div className={"pr-page" + (preview ? " pr-preview" : "")}>
 
       {/* ─── Üst bant ─── */}
       <header className="pr-head">
         <div className="container">
-          <a href="/profil" className="pr-back"><ArrowLeft size={15} /> Freelancer Bul</a>
+          {!preview && <Link href={owner ? "/hesabim" : "/profil"} className="pr-back"><ArrowLeft size={15} /> {owner ? "Hesap panelim" : "Freelancer bul"}</Link>}
+          {owner && !preview && <div className="pr-owner-note"><span>Bu senin herkese açık profilin.</span><Link href="/hesabim/profil">Profilini geliştirmeye devam et <ArrowRight size={13}/></Link></div>}
           <div className="pr-head-row">
             <div className="ava pr-ava">
-              {profile.avatar ? <img src={profile.avatar} alt={profile.name} /> : initials(profile.name)}
+              {profile.avatar ? <Image unoptimized src={profile.avatar} alt="" width={88} height={88} referrerPolicy="no-referrer" /> : initials(profile.name)}
             </div>
             <div className="pr-id">
-              <h1>
+              <NameHeading>
                 {profile.name}
-                {profile.tc_verified && <BadgeCheck size={22} className="pr-check" aria-label="Kimlik onaylı" />}
-              </h1>
+              </NameHeading>
               <p className="pr-title">{profile.title ?? (profile.user_type === "freelancer" ? "Freelancer" : "İşveren")}</p>
               <div className="pr-meta">
                 <span>@{profile.username}</span>
-                <span><MapPin size={13} /> Türkiye</span>
                 {profile.category && <span>{profile.category}</span>}
               </div>
             </div>
-            <div className="pr-head-actions">
-              {profile.links.whatsapp ? (
-                <a href={`https://wa.me/${profile.links.whatsapp}`} target="_blank" rel="noopener noreferrer" className="btn-primary">Teklif iste</a>
-              ) : (
-                <a href="/ilan-ver" className="btn-primary">Teklif iste</a>
-              )}
-            </div>
+            {!preview && <div className="pr-head-actions">{owner ? <><Link href="/hesabim/profil" className="btn-primary"><Pencil size={16}/> Profilimi düzenle</Link><button className="btn-secondary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(location.origin + "/profil/" + encodeURIComponent(profile.username)); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { setCopied(false); } }}>{copied ? <Check size={16}/> : <Copy size={16}/>} {copied ? "Kopyalandı" : "Bağlantıyı kopyala"}</button></> : <Link href={"/mesajlar?to=" + encodeURIComponent(profile.id)} className="btn-primary"><MessageSquare size={16}/> Mesaj gönder</Link>}</div>}
           </div>
 
           <dl className="pr-stats">
             <div><dt>Puan</dt><dd>{profile.rating > 0 ? profile.rating.toFixed(1).replace(".", ",") : "–"}<small> / 5</small></dd></div>
             <div><dt>Tamamlanan iş</dt><dd>{profile.jobs_done}</dd></div>
             <div><dt>Değerlendirme</dt><dd>{reviews.length}</dd></div>
-            <div><dt>Doğrulama</dt><dd className={profile.tc_verified ? "ok" : "muted"}>{profile.tc_verified ? "Kimlik onaylı" : "Onaysız"}</dd></div>
           </dl>
         </div>
       </header>
 
       {/* ─── Gövde ─── */}
       <div className="container pr-body">
-        <main className="pr-main">
+        <div className="pr-main">
           <section className="pr-sec">
             <h2>Hakkında</h2>
             <p className="pr-bio">{profile.bio || "Henüz biyografi eklenmemiş."}</p>
@@ -144,8 +134,8 @@ export default function ProfileClient({ profile, reviews }: { profile: ProfileDa
               <p className="pr-empty" style={{ paddingTop: 12 }}>Henüz değerlendirme yapılmamış.</p>
             ) : (
               <ul className="pr-reviews">
-                {reviews.map((r, idx) => (
-                  <li key={idx}>
+                {reviews.map((r) => (
+                  <li key={r.id}>
                     <div className="pr-review-top">
                       <div>
                         <strong>{r.project}</strong>
@@ -159,42 +149,35 @@ export default function ProfileClient({ profile, reviews }: { profile: ProfileDa
               </ul>
             )}
           </section>
-        </main>
+        </div>
 
         <aside className="pr-side">
           <div className="pr-box">
             <h3>İletişim</h3>
             {profile.links.whatsapp && (
-              <a href={`https://wa.me/${profile.links.whatsapp}`} target="_blank" rel="noopener noreferrer" className="pr-link">
+              <a href={`https://wa.me/${profile.links.whatsapp}`} target="_blank" rel="noopener noreferrer nofollow ugc" className="pr-link">
                 <span className="pr-link-ic"><WhatsAppIcon /></span>
                 <span className="pr-link-tx"><b>WhatsApp</b><small>Doğrudan mesaj gönderin</small></span>
                 <ArrowUpRight size={16} />
               </a>
             )}
             {profile.links.portfolio && (
-              <a href={profile.links.portfolio} target="_blank" rel="noopener noreferrer" className="pr-link">
+              <a href={profile.links.portfolio} target="_blank" rel="noopener noreferrer nofollow ugc" className="pr-link">
                 <span className="pr-link-ic"><ArrowUpRight size={18} /></span>
                 <span className="pr-link-tx"><b>Portfolyo</b><small>{profile.links.portfolio.replace(/^https?:\/\//, "")}</small></span>
                 <ArrowUpRight size={16} />
               </a>
             )}
             {profile.links.discord && (
-              <button type="button" onClick={copyDiscord} className="pr-link">
+              <button type="button" onClick={copyDiscord} className="pr-link" aria-label={copied ? "Discord kullanıcı adı kopyalandı" : "Discord kullanıcı adını kopyala"}>
                 <span className="pr-link-ic"><DiscordIcon /></span>
                 <span className="pr-link-tx"><b>Discord</b><small>{profile.links.discord}</small></span>
                 {copied ? <Check size={16} /> : <Copy size={16} />}
               </button>
             )}
-            {!hasContact && <p className="pr-empty">Bu kullanıcı henüz iletişim bilgisi eklememiş.</p>}
+            {!hasContact && <p className="pr-empty">{owner ? "Profilini düzenleyerek iletişim bağlantılarını buraya ekleyebilirsin." : "Bu kullanıcıyla Frenaw üzerinden iletişime geçebilirsiniz."}</p>}
           </div>
 
-          <div className="pr-box">
-            <h3>Güven</h3>
-            <ul className="pr-trust">
-              <li className={profile.tc_verified ? "on" : ""}><ShieldCheck size={16} /> TC kimlik doğrulaması</li>
-              <li className={profile.trust_badge ? "on" : ""}><BadgeCheck size={16} /> Güven rozeti</li>
-            </ul>
-          </div>
         </aside>
       </div>
     </div>
