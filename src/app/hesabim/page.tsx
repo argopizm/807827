@@ -285,7 +285,7 @@ export default function HesabimPage() {
             <Link href="/ilanlar" className="sidebar-tab"><FileText size={16} /> İş İlanlarına Bak</Link>
             <Link href="/hesabim/ayarlar" className="sidebar-tab"><Settings size={16} /> Hesap Ayarları</Link>
             <Link href="/destek" className="sidebar-tab"><Mail size={16} /> Destek Taleplerim</Link>
-            <Link href="/dogrulama" className="sidebar-tab"><ShieldCheck size={16} /> Kimlik Doğrulama Bilgisi</Link>
+            <Link href="/dogrulama" className="sidebar-tab"><ShieldCheck size={16} /> Kimlik Doğrulama</Link>
           </aside>
 
           <div className="hesabim-content glass-card">
@@ -389,7 +389,7 @@ export default function HesabimPage() {
           <Link href="/profil" className="sidebar-tab"><User size={16} /> Freelancer Bul</Link>
           <Link href="/hesabim/ayarlar" className="sidebar-tab"><Settings size={16} /> Hesap Ayarları</Link>
             <Link href="/destek" className="sidebar-tab"><Mail size={16} /> Destek Taleplerim</Link>
-          <Link href="/dogrulama" className="sidebar-tab"><ShieldCheck size={16} /> Kimlik Doğrulama Bilgisi</Link>
+          <Link href="/dogrulama" className="sidebar-tab"><ShieldCheck size={16} /> Kimlik Doğrulama</Link>
         </aside>
 
         <div className="hesabim-content glass-card">

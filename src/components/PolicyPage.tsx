@@ -22,9 +22,10 @@ export default function PolicyPage({ title, description, children }: {
         <span className={styles.eyebrow}>Frenaw · Yasal bilgiler</span>
         <h1>{title}</h1>
         <p>{description}</p>
+        <p className={styles.updated}>Son güncelleme: 9 Kasım 2026</p>
       </header>
       <p className={styles.draft}>
-        Bu metnin hukuk incelemesi tamamlanmamıştır. Açık posta adresi, ayrıntılı saklama süreleri ve varsa yurt dışı aktarım dayanakları henüz kesinleştirilmemiştir.
+        Bu metnin hukuk incelemesi tamamlanmamıştır. Veri sorumlusunun posta adresi, ayrıntılı saklama süreleri ve yurt dışı aktarım dayanağı kesinleştirilmektedir.
       </p>
       <div className={styles.content}>{children}</div>
       <nav className={styles.links} aria-label="İlgili yasal belgeler">

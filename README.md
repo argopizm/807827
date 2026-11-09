@@ -43,7 +43,7 @@ Destek yetkisi, yetkili bir yönetim işlemiyle `support_staff` tablosuna var ol
 1. Önizlemede `npm run lint` ve `npm run build:cf` çalıştırın; Cloudflare derlemesi Next.js tür denetimini de yapar. Proje Workers ve OpenNext kullanır; eski Pages projesini üretim yayını için kullanmayın. Birleştirme sonrasında Workers Builds sonucunu kontrol edin.
 2. Ayrı hesaplarla ilan, teklif, değerlendirme, mesaj ve destek akışlarını sınayın. Doğrulanmış e-posta göndericisini, Google dönüş adreslerini, Worker bağlayıcısını ve destek yetkilerini kontrol edin.
 3. İşleten gerçek kişinin başvuru iletişim bilgileri ve hukuk onayından sonra belgeleri, alan adını, yönlendirmeleri ve Search Console'u devreye alın.
-4. NVİ formunu yalnızca yetkili dört alanlı kanal ve Frenaw'ın sıfır saklama şartı yazılı olarak birlikte doğrulanırsa açın. Eski doğrulama bayrağı resmî teyit olarak kullanılmaz.
+4. NVİ eşleşmesi `/dogrulama` sayfasında isteğe bağlıdır ve yalnızca NVİ'nin canlı KPSPublic servisini kullanır. Girilen bilgiler saklanmaz, loglanmaz; yalnızca `tc_verified = 2` sonucu tutulur. Eski `tc_verified = 1` değerleri gösterilmez. Eşleşme resmî kimlik teyidi olarak sunulmaz.
 
 ## Üretim yapılandırması
 
@@ -72,7 +72,7 @@ Kimlik bilgileri sıfır saklama kapsamındadır. Hesaplar, sohbetler ve destek 
 - Silmede kişi bilgileri temizlenir, destek talepleri ve hizmetler silinir, ilanlar kapatılır ve kullanıcının mesaj içeriği kaldırılır. İlişkisel teknik kimlikler ve sağlayıcı yedekleri aynı anda yok edilmez. Tam anonimleştirme veya sıfır kayıt iddiası yapılmaz.
 - 0001–0006 migration'ları canlı D1'e uygulandı. Eski `users.created_at` eksikliği giderildi; eski sayısal `jobs.id`, mevcut kimlik değerleri korunarak TEXT şemasına geçirildi. Taşıma öncesi SQL yedeği proje dışındaki özel çalışma klasöründe tutulur.
 - İşletmecinin mevcut hesabı `support_staff` yetkisiyle destek kuyruğuna erişebilir. Normal kullanıcılar destek kuyruğuna ve başkasının taleplerine erişemez.
-- Google/GitHub/Discord/Microsoft/Apple girişleri bu yayında etkin değildir; sağlayıcı uygulama kayıtları ve anahtarları gereklidir. NVİ doğrulaması kapalıdır.
+- Google/GitHub/Discord/Microsoft/Apple girişleri bu yayında etkin değildir; sağlayıcı uygulama kayıtları ve anahtarları gereklidir. NVİ eşleşmesi isteğe bağlı olarak açıktır (sıfır saklama).
 - Yasal sayfalarda bilinen veri sorumlusu adı ve destek e-postası gösterilir. Açık posta adresi, saklama takvimi ve yurt dışı aktarım dayanağı ile hukuk incelemesi tamamlanmamıştır; belgeler tamamlanmış uyum beyanı değildir.
 
 ## Herkese açık görünen adlar

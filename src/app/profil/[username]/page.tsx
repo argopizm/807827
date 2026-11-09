@@ -1,4 +1,5 @@
 import { publicNameSql, validDiscord } from "@/lib/public-identity";
+import { identityMatched } from "@/lib/identity-check";
 import { auth } from "@/auth";
 import { cache } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -22,6 +23,7 @@ interface ProfileRow {
   total_jobs_completed: number | null;
   user_type: "freelancer" | "employer";
   contact_links: string | null;
+  identity_matched: number;
 }
 
 function publicContactLinks(raw: string | null): ProfileData["links"] {
@@ -44,7 +46,7 @@ const getPublicProfile = cache(async function (username: string): Promise<Profil
 
   const user = await db.prepare(
     "SELECT id, " + publicNameSql() + " AS name, username, title, category, skills, " +
-    "COALESCE(avatar_url, image) AS avatar, bio, rating_avg, total_jobs_completed, user_type, contact_links " +
+    "COALESCE(avatar_url, image) AS avatar, bio, rating_avg, total_jobs_completed, user_type, contact_links, tc_verified = " + identityMatched + " AS identity_matched " +
     "FROM users WHERE (LOWER(username) = LOWER(?) OR id = ?) AND user_type IN ('freelancer', 'employer') " +
     "AND onboarding_done = 1 AND NULLIF(TRIM(username), '') IS NOT NULL"
   ).bind(username, username).first<ProfileRow>();
@@ -63,6 +65,7 @@ const getPublicProfile = cache(async function (username: string): Promise<Profil
     user_type: user.user_type,
     skills: parseSkills(user.skills),
     links: publicContactLinks(user.contact_links),
+    identityMatched: Boolean(user.identity_matched),
   };
 });
 

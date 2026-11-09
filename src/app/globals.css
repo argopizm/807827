@@ -654,3 +654,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--p
 .pp-show-more:hover { border-color: var(--primary); color: var(--primary); }
 @media (max-width: 900px) { .pp-grid { grid-template-columns: 1fr; } .pp-sidebar { position: static; } }
 @media (max-width: 640px) { .dashboard-stats { grid-template-columns: 1fr; } .onb-card { padding: 32px 24px; } }
+.identity-consent { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
+.identity-consent input { margin-top: 4px; }
+.identity-error { color: var(--primary); font-size: 14px; }
+.verify-form .input-group input { min-width: 0; width: 100%; }
+.verify-btn:disabled { opacity: .55; cursor: not-allowed; }
+.identity-footer { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 28px; font-size: 14px; }
+@media (max-width: 600px) { .verify-form .input-row { grid-template-columns: 1fr; } }

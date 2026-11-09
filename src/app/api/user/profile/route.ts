@@ -66,7 +66,7 @@ export async function PUT(request: Request) {
   const body = await readJson(request);
   if (!body) return NextResponse.json({ error: "Geçersiz profil bilgisi." }, { status: 400 });
   if (body.action === "verify_tc") {
-    return NextResponse.json({ error: "Kimlik doğrulama kapalı. Kimlik bilgilerinizi göndermeyin." }, { status: 410 });
+    return NextResponse.json({ error: "Bu işlem kullanımdan kaldırıldı. Kimlik doğrulama sayfasını kullanın." }, { status: 410 });
   }
 
   const userId = session.user.id;
